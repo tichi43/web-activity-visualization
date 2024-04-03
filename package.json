@@ -1,0 +1,19 @@
+{
+  "name": "web-activity-visualization",
+  "version": "1.0.0",
+  "description": "a JavaScript plugin and server application to graphically show how much time a user spent on different parts of a webpage",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tichi43/web-activity-visualization.git"
+  },
+  "author": "Tichi Márton József",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/tichi43/web-activity-visualization/issues"
+  },
+  "homepage": "https://github.com/tichi43/web-activity-visualization#readme"
+}
