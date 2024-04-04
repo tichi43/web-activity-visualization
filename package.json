@@ -2,9 +2,9 @@
   "name": "web-activity-visualization",
   "version": "1.0.0",
   "description": "a JavaScript plugin and server application to graphically show how much time a user spent on different parts of a webpage",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "devstart": "nodemon server.js"
   },
   "repository": {
     "type": "git",
@@ -15,5 +15,14 @@
   "bugs": {
     "url": "https://github.com/tichi43/web-activity-visualization/issues"
   },
-  "homepage": "https://github.com/tichi43/web-activity-visualization#readme"
+  "homepage": "https://github.com/tichi43/web-activity-visualization#readme",
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mongoose": "^8.3.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
 }
