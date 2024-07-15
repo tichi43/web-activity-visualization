@@ -8,6 +8,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="old\**" />
+    <Content Remove="old\**" />
+    <EmbeddedResource Remove="old\**" />
+    <None Remove="old\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.7" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.7" />
+    <PackageReference Include="MongoDB.EntityFrameworkCore" Version="8.0.3" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
   </ItemGroup>
 
