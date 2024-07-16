@@ -51,8 +51,8 @@ function intersectionCallback(entries) {
 function startPeriodicUpdate(anchorID) {
     updateIntervals[anchorID] = setInterval(function () {
         updateTotalTime(anchorID);
-        updateHeatmap(); // Optionally update the heatmap with each periodic update
-        sendToServer(anchorID);
+        //updateHeatmap(); // Optionally update the heatmap with each periodic update
+        //sendToServer(anchorID);
     }, 5000); // Update every 5000 milliseconds (5 seconds)
 }
 
@@ -60,7 +60,7 @@ function startPeriodicUpdate(anchorID) {
 function updateTotalTime(anchorID) {
     //if (anchorDB[anchorID].visible) {
     var elapsedTime = performance.now() - anchorDB[anchorID].startTime;
-    anchorDB[anchorID].totalTime += elapsedTime;
+    anchorDB[anchorID].totalTime += Math.floor(elapsedTime);
     anchorDB[anchorID].startTime = performance.now(); // Reset startTime
     //}
 }
@@ -70,6 +70,44 @@ var observer = new IntersectionObserver(intersectionCallback, observerConfig);
 for (const anchorPoint of anchorPoints) {
     observer.observe(anchorPoint);
 }
+
+const senderToServerInterval = setInterval(() => {
+    console.log("sending to server");
+
+    const pageUrl = window.location.href;
+    const anchors = Object.keys(anchorDB).map(key => ({
+        anchorName: key,
+        totalTime: anchorDB[key].totalTime
+    }));
+
+    // Reset TotalTime to 0 for every entry in anchorDB
+    Object.values(anchorDB).forEach(entry => entry.totalTime = 0);
+
+    const trackedPageData = [{ // Formatted data we will send to the server
+        pageUrl: pageUrl,
+        anchors: anchors
+    }];
+
+    fetch('http://localhost:5011/api/TrackedPage', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(trackedPageData),
+    })
+        .then(response => response.text())
+        .then(data => {
+            console.log('Success:', data);
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+
+
+
+}, 5000); //end of senderToServerInterval
+
+
 
 // Function to update the heatmap with the anchor point data
 function updateHeatmap() {
