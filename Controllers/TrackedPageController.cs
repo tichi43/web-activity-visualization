@@ -26,18 +26,50 @@ public class TrackedPageController : ControllerBase
 
         foreach (var trackedPageDto in trackedPageDtos)
         {
-            var trackedPage = new TrackedPage
-            {
-                PageUrl = trackedPageDto.PageUrl,
-                Anchors = trackedPageDto.Anchors.Select(a => new Anchor
-                {
-                    AnchorName = a.AnchorName,
-                    TotalTime = a.TotalTime
-                    // Note: The TrackedPage reference is automatically set when adding Anchors to TrackedPage
-                }).ToList()
-            };
+            var existingPage = await _context.TrackedPages
+                .Include(tp => tp.Anchors)
+                .FirstOrDefaultAsync(tp => tp.PageUrl == trackedPageDto.PageUrl);
 
-            _context.TrackedPages.Add(trackedPage);
+            if (existingPage != null)
+            {
+                // Page exists, update or add anchors
+                foreach (var anchorDto in trackedPageDto.Anchors)
+                {
+                    var existingAnchor = existingPage.Anchors
+                        .FirstOrDefault(a => a.AnchorName == anchorDto.AnchorName);
+
+                    if (existingAnchor != null)
+                    {
+                        // Anchor exists, update totalTime
+                        existingAnchor.TotalTime += anchorDto.TotalTime;
+                    }
+                    else
+                    {
+                        // Anchor does not exist, add new anchor (SHOULD NEVER RUN!)
+                        /*existingPage.Anchors.Add(new Anchor
+                        {
+                            AnchorName = anchorDto.AnchorName,
+                            TotalTime = anchorDto.TotalTime
+                        });*/
+                        return BadRequest("New anchor found on existing page, please delete the page from the database if it was edited.");
+                    }
+                }
+            }
+            else
+            {
+                // Page does not exist, create new
+                var newPage = new TrackedPage
+                {
+                    PageUrl = trackedPageDto.PageUrl,
+                    Anchors = trackedPageDto.Anchors.Select(a => new Anchor
+                    {
+                        AnchorName = a.AnchorName,
+                        TotalTime = a.TotalTime
+                    }).ToList()
+                };
+
+                _context.TrackedPages.Add(newPage);
+            }
         }
 
         await _context.SaveChangesAsync();

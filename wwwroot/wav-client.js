@@ -60,7 +60,7 @@ function startPeriodicUpdate(anchorID) {
 function updateTotalTime(anchorID) {
     //if (anchorDB[anchorID].visible) {
     var elapsedTime = performance.now() - anchorDB[anchorID].startTime;
-    anchorDB[anchorID].totalTime += Math.floor(elapsedTime);
+    anchorDB[anchorID].totalTime += Math.floor(elapsedTime/1000);
     anchorDB[anchorID].startTime = performance.now(); // Reset startTime
     //}
 }
