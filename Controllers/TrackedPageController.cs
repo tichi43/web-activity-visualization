@@ -45,13 +45,13 @@ public class TrackedPageController : ControllerBase
                     }
                     else
                     {
-                        // Anchor does not exist, add new anchor (SHOULD NEVER RUN!)
-                        /*existingPage.Anchors.Add(new Anchor
+                        // Anchor does not exist, add new anchor
+
+                        existingPage.Anchors.Add(new Anchor
                         {
                             AnchorName = anchorDto.AnchorName,
                             TotalTime = anchorDto.TotalTime
-                        });*/
-                        return BadRequest("New anchor found on existing page, please delete the page from the database if it was edited.");
+                        });
                     }
                 }
             }
@@ -78,9 +78,16 @@ public class TrackedPageController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<TrackedPage>>> GetAllTrackedPages()
+    public async Task<ActionResult<IEnumerable<TrackedPage>>> GetTrackedPages([FromQuery] string? queryPageUrl)
     {
-        var trackedPages = await _context.TrackedPages
+        IQueryable<TrackedPage> query = _context.TrackedPages;
+
+        if (!string.IsNullOrEmpty(queryPageUrl))
+        {
+            query = query.Where(tp => tp.PageUrl == queryPageUrl);
+        }
+
+        var trackedPages = await query
             .Select(tp => new TrackedPage
             {
                 TrackedPageId = tp.TrackedPageId,
@@ -91,7 +98,6 @@ public class TrackedPageController : ControllerBase
                     AnchorName = a.AnchorName,
                     TrackedPageId = a.TrackedPageId,
                     TotalTime = a.TotalTime
-
                 }).ToList()
             })
             .ToListAsync();

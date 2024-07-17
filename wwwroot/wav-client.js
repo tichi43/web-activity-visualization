@@ -1,6 +1,7 @@
 //mongo passwd: AWH0UIANt1NAnfAV
+
 // Initialize heatmap.js
-console.log("fasz");
+console.log("js loaded");
 var heatmapInstance = h337.create({
     container: document.getElementById('heatmap-container'),
     radius: 30
@@ -14,7 +15,7 @@ var updateIntervals = {};
 
 // Assign unique classes to each anchor point and initialize anchorDB
 anchorPoints.forEach(function (anchorPoint, i) {
-    var anchorID = 'anchor-' + i;
+    var anchorID = 'anchor-' + i.toString().padStart(3, '0');
     anchorPoint.classList.add(anchorID);
     anchorDB[anchorID] = { visible: false, startTime: 0, totalTime: 0 };
 });
@@ -44,16 +45,14 @@ function intersectionCallback(entries) {
             }
         }
     }
-    updateHeatmap();
+    //updateHeatmap();
 }
 
 // Function to start periodic updates for a visible anchor
 function startPeriodicUpdate(anchorID) {
     updateIntervals[anchorID] = setInterval(function () {
         updateTotalTime(anchorID);
-        //updateHeatmap(); // Optionally update the heatmap with each periodic update
-        //sendToServer(anchorID);
-    }, 5000); // Update every 5000 milliseconds (5 seconds)
+    }, 5000); // Update statistics every 5000 milliseconds
 }
 
 // Function to update totalTime for an anchor
@@ -71,24 +70,26 @@ for (const anchorPoint of anchorPoints) {
     observer.observe(anchorPoint);
 }
 
-const senderToServerInterval = setInterval(() => {
+const sendToServerInterval = setInterval(() => {
     console.log("sending to server");
 
-    const pageUrl = window.location.href;
-    const anchors = Object.keys(anchorDB).map(key => ({
-        anchorName: key,
-        totalTime: anchorDB[key].totalTime
-    }));
+    const pageUrl = window.location.href.replace(/^(https?:\/\/)?/, ''); // same page regardless of protocol
+    const anchors = Object.keys(anchorDB)
+        .filter(key => anchorDB[key].totalTime > 0) // Don't send anchor points with totalTime = 0, save bandwidth
+        .map(key => ({
+            anchorName: key,
+            totalTime: anchorDB[key].totalTime
+        }));
 
     // Reset TotalTime to 0 for every entry in anchorDB
     Object.values(anchorDB).forEach(entry => entry.totalTime = 0);
 
-    const trackedPageData = [{ // Formatted data we will send to the server
+    const trackedPageData = [{ // Formatted object we will send to the server
         pageUrl: pageUrl,
         anchors: anchors
     }];
 
-    fetch('http://localhost:5011/api/TrackedPage', {
+    fetch('https://localhost:5011/api/TrackedPage', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -105,35 +106,109 @@ const senderToServerInterval = setInterval(() => {
 
 
 
-}, 5000); //end of senderToServerInterval
+}, 6000); //end of sendToServerInterval
 
 
 
-// Function to update the heatmap with the anchor point data
-function updateHeatmap() {
+/*HEATMAP RENDERING*/
 
-    let maxTime = Math.max(...Object.values(anchorDB).map(anchor => anchor.totalTime)); // Find max totalTime in anchorDB
+// Debounce function to limit execution frequency
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
 
-    if (maxTime > 0) {
-        let heatmapData = [];
-        const containerHeight = document.getElementById('heatmap-container').clientHeight;
-        const anchorCount = Object.keys(anchorDB).length;
-        const spacing = containerHeight / anchorCount; // Calculate spacing to distribute anchors vertically
+// Simple cache for fetched data
+let heatmapDataCache = {
+    pageUrl: '',
+    data: null,
+    lastFetch: 0,
+    fetchInterval: 30000 // 30 seconds
+};
 
-        Object.values(anchorDB).forEach((anchor, i) => {
-            // Calculate the y position based on i
-            let yPos = i * spacing + (spacing / 2); // Center the point in its "slot". Smart!
-            heatmapData.push({
-                x: 10, // Assuming a fixed x position since the heatmap is vertical
-                y: yPos,
-                value: anchor.totalTime
+// Optimized updateHeatmap function with error handling and requestAnimationFrame
+function fetchAndDrawHeatmap() {
+    const pageUrl = window.location.href.replace(/^(https?:\/\/)?/, ''); // Normalize the page URL
+
+    // Check cache
+    const currentTime = Date.now();
+    if (heatmapDataCache.pageUrl === pageUrl && 
+        heatmapDataCache.data && 
+        (currentTime - heatmapDataCache.lastFetch < heatmapDataCache.fetchInterval)) {
+        // Use cached data
+        renderHeatmap(heatmapDataCache.data);
+        return;
+    }
+
+    fetch(`https://localhost:5011/api/TrackedPage?pageUrl=${encodeURIComponent(pageUrl)}`)
+        .then(response => response.json())
+        .then(data => {
+            // Cache the fetched data
+            heatmapDataCache = { pageUrl, data, lastFetch: Date.now(), fetchInterval: heatmapDataCache.fetchInterval };
+
+            console.log('Fetched heatmap data:', data);
+
+            renderHeatmap(data);
+        })
+        .catch(error => {
+            console.error('Error fetching heatmap data:', error);
+            // Implement additional error handling as needed
+        });
+}
+
+// Render heatmap data
+function renderHeatmap(data) {
+    if (data.length > 0) {
+        const trackedPage = data[0];
+        const anchorsData = trackedPage.anchors;
+
+        let maxTime = Math.max(...anchorsData.map(anchor => anchor.totalTime));
+
+        if (maxTime > 0) {
+            requestAnimationFrame(() => {
+                let heatmapData = [];
+                const documentHeight = document.documentElement.scrollHeight;
+                const viewportHeight = window.innerHeight;
+
+                anchorsData.forEach(anchorData => {
+                    // Find the corresponding anchor element in the page
+                    const anchorElement = document.querySelector('.' + anchorData.anchorName);
+                    if (anchorElement) {
+                        // Get the anchor element's position relative to the document
+                        const anchorPosition = anchorElement.getBoundingClientRect().top + window.scrollY;
+
+                        // Map the anchor's position to the viewport height (heatmap container height)
+                        let yPos = (anchorPosition / documentHeight) * viewportHeight;
+
+                        heatmapData.push({
+                            x: 10, // Assuming a fixed x position since the heatmap is vertical
+                            y: yPos,
+                            value: anchorData.totalTime
+                        });
+                    }
+                });
+
+                heatmapInstance.setData({
+                    max: maxTime,
+                    data: heatmapData
+                });
             });
-        });
-
-        // Update the heatmap with new data
-        heatmapInstance.setData({
-            max: maxTime,
-            data: heatmapData
-        });
+        }
     }
 }
+
+// Debounce the updateHeatmap function to limit its execution frequency
+var fetchAndDrawHeatmapDebounced = debounce(fetchAndDrawHeatmap, 100); // Execute at most every 250ms
+
+fetchAndDrawHeatmap(); //execute once on page load
+
+window.addEventListener('resize', () => { // Update heatmap on window resize
+    fetchAndDrawHeatmapDebounced();
+});
