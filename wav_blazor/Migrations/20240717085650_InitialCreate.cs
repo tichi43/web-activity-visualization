@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace web_activity_visualization.Migrations
+namespace wav_blazor.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration

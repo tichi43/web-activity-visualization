@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using web_activity_visualization.Models;
+using wav_blazor.Models;
 
-namespace web_activity_visualization.Controllers;
+namespace wav_blazor.Controllers;
 
 
 [Route("api/[controller]")]

@@ -1,7 +1,7 @@
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using web_activity_visualization.Models;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using wav_blazor.Components;
+using wav_blazor.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,8 +14,9 @@ builder.WebHost.ConfigureKestrel((context, options) =>
     });
 });
 
-// Add services to the container.
 
+// Add services to the container.
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddControllers();
 builder.Services.AddDbContext<MyDbContext>(options =>
        options.UseSqlServer(builder.Configuration.GetConnectionString("MyDatabase")));
@@ -25,19 +26,26 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Configure the HTTP request pipeline.
+app.UseHttpsRedirection();
+app.UseDefaultFiles();
 app.UseStaticFiles();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+//app.UseExceptionHandler("/Error", createScopeForErrors: true);
+
 
 app.UseAuthorization();
 
+app.UseRouting();
+app.UseAntiforgery();
+
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapControllers();
 
 app.Run();

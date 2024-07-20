@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("wav_blazor")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+44e3cc58c77a28f6b71b5fccac7675c31e9efa8b")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+52c87ad312f9dd8b8a5de1f529f5ac129c8d83d1")]
 [assembly: System.Reflection.AssemblyProductAttribute("wav_blazor")]
 [assembly: System.Reflection.AssemblyTitleAttribute("wav_blazor")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

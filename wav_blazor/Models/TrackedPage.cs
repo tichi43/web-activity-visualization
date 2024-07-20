@@ -1,8 +1,6 @@
-﻿using MongoDB.Bson;
-using MongoDB.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations;
+﻿//using System.ComponentModel.DataAnnotations;
 
-namespace web_activity_visualization.Models;
+namespace wav_blazor.Models;
 
     public class TrackedPage
     {

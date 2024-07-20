@@ -2,20 +2,17 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using web_activity_visualization.Models;
+using wav_blazor.Models;
 
 #nullable disable
 
-namespace web_activity_visualization.Migrations
+namespace wav_blazor.Migrations
 {
     [DbContext(typeof(MyDbContext))]
-    [Migration("20240717085650_InitialCreate")]
-    partial class InitialCreate
+    partial class MyDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -24,7 +21,7 @@ namespace web_activity_visualization.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("web_activity_visualization.Models.Anchor", b =>
+            modelBuilder.Entity("wav_blazor.Models.Anchor", b =>
                 {
                     b.Property<int>("AnchorId")
                         .ValueGeneratedOnAdd()
@@ -49,7 +46,7 @@ namespace web_activity_visualization.Migrations
                     b.ToTable("Anchors");
                 });
 
-            modelBuilder.Entity("web_activity_visualization.Models.TrackedPage", b =>
+            modelBuilder.Entity("wav_blazor.Models.TrackedPage", b =>
                 {
                     b.Property<int>("TrackedPageId")
                         .ValueGeneratedOnAdd()
@@ -66,9 +63,9 @@ namespace web_activity_visualization.Migrations
                     b.ToTable("TrackedPages");
                 });
 
-            modelBuilder.Entity("web_activity_visualization.Models.Anchor", b =>
+            modelBuilder.Entity("wav_blazor.Models.Anchor", b =>
                 {
-                    b.HasOne("web_activity_visualization.Models.TrackedPage", "TrackedPage")
+                    b.HasOne("wav_blazor.Models.TrackedPage", "TrackedPage")
                         .WithMany("Anchors")
                         .HasForeignKey("TrackedPageId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -77,7 +74,7 @@ namespace web_activity_visualization.Migrations
                     b.Navigation("TrackedPage");
                 });
 
-            modelBuilder.Entity("web_activity_visualization.Models.TrackedPage", b =>
+            modelBuilder.Entity("wav_blazor.Models.TrackedPage", b =>
                 {
                     b.Navigation("Anchors");
                 });
