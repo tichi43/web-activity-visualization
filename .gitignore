@@ -3,3 +3,7 @@
 ################################################################################
 
 /.vs
+/wav_blazor/bin
+/wav_blazor/obj
+/wav_blazor/obj/Debug/net8.0/wav_blazor.AssemblyInfo.cs
+/wav_blazor/obj/Debug/net8.0/wav_blazor.AssemblyInfoInputs.cache
