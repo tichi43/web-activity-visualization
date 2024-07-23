@@ -12,6 +12,7 @@ var anchorPoints = document.querySelectorAll('h1, h2, h3, h4, h5, h6, p');
 var anchorDB = {};
 // Define a global variable to store interval IDs for each anchor
 var updateIntervals = {};
+const pageUrl = window.location.href.replace(/^(https?:\/\/)?/, '').replace(/\/index\.html$/, '').replace(/\/$/, ''); // same page regardless of protocol and remove "/index.html" from the end and remove trailing slashes
 
 // Assign unique classes to each anchor point and initialize anchorDB
 anchorPoints.forEach(function (anchorPoint, i) {
@@ -73,7 +74,6 @@ for (const anchorPoint of anchorPoints) {
 const sendToServerInterval = setInterval(() => {
     console.log("sending to server");
 
-    const pageUrl = window.location.href.replace(/^(https?:\/\/)?/, ''); // same page regardless of protocol
     const anchors = Object.keys(anchorDB)
         .filter(key => anchorDB[key].totalTime > 0) // Don't send anchor points with totalTime = 0, save bandwidth
         .map(key => ({
@@ -135,8 +135,6 @@ let heatmapDataCache = {
 
 // Optimized updateHeatmap function with error handling and requestAnimationFrame
 function fetchAndDrawHeatmap() {
-    const pageUrl = window.location.href.replace(/^(https?:\/\/)?/, ''); // Normalize the page URL
-
     // Check cache
     const currentTime = Date.now();
     if (heatmapDataCache.pageUrl === pageUrl && 

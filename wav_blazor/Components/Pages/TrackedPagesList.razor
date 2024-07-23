@@ -1,0 +1,58 @@
+﻿@page "/"
+@* @inject Models.TrackedPage TrackedPage *@
+@inject Models.MyDbContext DbContext
+@using wav_blazor.Models
+@using Microsoft.EntityFrameworkCore
+@attribute [StreamRendering(true)]
+
+
+<h3>TrackedPagesList</h3>
+
+@if (trackedPages == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+
+
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>URL</th>
+                <th>Page Views</th>
+                <th>Viewtime</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var trackedPage in trackedPages)
+            {
+                <tr>
+                    <td>@trackedPage.TrackedPageId</td>
+                    <td>@trackedPage.PageUrl</td>
+                    <td>N/A</td>
+                    <td>@(trackedPage.Anchors.Sum(a => a.TotalTime)/60) minutes</td>
+                    <td>
+                        <a class="btn btn-primary">Details</a>
+                        <a class="btn btn-danger">Delete</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    
+    private List<TrackedPage> trackedPages = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        trackedPages = await DbContext.TrackedPages
+                                       .Include(tp => tp.Anchors)
+                                       .ToListAsync();
+    }
+}
