@@ -1,0 +1,30 @@
+﻿@page "/TrackedPageDetails/{TrackedPageId:int}"
+@inject Models.MyDbContext DbContext
+
+<h3>TrackedPageDetails</h3>
+
+@if (currentPage == null)
+{
+    <p>Page not found</p>
+}
+else
+{
+
+    <p>@currentPage.PageUrl</p>
+    <p>@currentPage.Anchors.Count</p>
+}
+
+
+@code {
+    TrackedPage? currentPage;
+
+    [Parameter]
+    public int TrackedPageId { get; set; } = 0;
+
+    protected override void OnInitialized()
+    {
+        currentPage = DbContext.TrackedPages.Include(tp => tp.Anchors).FirstOrDefault(p => p.TrackedPageId == TrackedPageId);
+    }
+
+
+}

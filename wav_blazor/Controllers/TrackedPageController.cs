@@ -92,6 +92,11 @@ public class TrackedPageController : ControllerBase
             {
                 TrackedPageId = tp.TrackedPageId,
                 PageUrl = tp.PageUrl,
+                LastUpdated = tp.LastUpdated,
+                TotalViewTime = tp.TotalViewTime,
+                TotalPageViews = tp.TotalPageViews,
+                IsDataCollectionActive = tp.IsDataCollectionActive,
+                IsHeatmapShown = tp.IsHeatmapShown,
                 Anchors = tp.Anchors.Select(a => new Anchor
                 {
                     AnchorId = a.AnchorId,
@@ -101,6 +106,11 @@ public class TrackedPageController : ControllerBase
                 }).ToList()
             })
             .ToListAsync();
+
+        if (trackedPages.Count == 0) // record with given PageUrl not found
+        {
+            return NotFound();
+        }
 
         return Ok(trackedPages);
     }

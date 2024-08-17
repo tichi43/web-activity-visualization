@@ -26,6 +26,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xFcnJvci5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/tichi/source/repos/web-activity-visualization/wav_blazor/Components/Pages/TrackedPageDetails.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xUcmFja2VkUGFnZURldGFpbHMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/tichi/source/repos/web-activity-visualization/wav_blazor/Components/Pages/TrackedPagesList.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xUcmFja2VkUGFnZXNMaXN0LnJhem9y
 build_metadata.AdditionalFiles.CssScope = 

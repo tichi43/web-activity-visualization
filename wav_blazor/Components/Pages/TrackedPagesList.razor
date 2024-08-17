@@ -1,58 +1,74 @@
 ﻿@page "/"
-@* @inject Models.TrackedPage TrackedPage *@
-@inject Models.MyDbContext DbContext
-@using wav_blazor.Models
-@using Microsoft.EntityFrameworkCore
 @attribute [StreamRendering(true)]
+@inject Models.MyDbContext DbContext
+@using Microsoft.AspNetCore.Components.QuickGrid;
+
 
 
 <h3>TrackedPagesList</h3>
+<div class="card">
+    <div class="card-header">
+        Items per page:
+        <select @bind="@pagination.ItemsPerPage">
+            <option>5</option>
+            <option>10</option>
+            <option>20</option>
+            <option>50</option>
+        </select>
+    </div>
 
-@if (trackedPages == null)
-{
-    <p>Loading...</p>
-}
-else
-{
+    <div class="card-body">
+        <QuickGrid Items="DbContext.TrackedPages.Include(tp => tp.Anchors)" Pagination="pagination" Class="table table-striped table-hover align-middle">
+            <PropertyColumn Property="q => q.TrackedPageId" Sortable="true" Title="ID"/>
+            <TemplateColumn Title="URL" SortBy="GridSort<TrackedPage>.ByAscending(p => p.PageUrl)">
+                <a href="https://@context.PageUrl">@context.PageUrl</a>
+            </TemplateColumn>
+            <PropertyColumn Property="q => q.Anchors.Count" Sortable="true" />
+            <TemplateColumn Title="Actions" Align="Align.Right">
+                <div class="btn-group btn-group-sm">
+                    <a href="TrackedPageDetails/@context.TrackedPageId" class="btn btn-primary">Details</a>
+                    <button @onclick="() => DeleteTrackedPage(context)" class="btn btn-danger">Delete</button>
+                </div>
+        
+            </TemplateColumn>
+        </QuickGrid>
+    </div>
+    <div class="card-footer">
+        <Paginator State="pagination"/>
+    </div>
+</div>
+<ConfirmDialog @ref="dialog" />
 
 
-
-    <table class="table">
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>URL</th>
-                <th>Page Views</th>
-                <th>Viewtime</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var trackedPage in trackedPages)
-            {
-                <tr>
-                    <td>@trackedPage.TrackedPageId</td>
-                    <td>@trackedPage.PageUrl</td>
-                    <td>N/A</td>
-                    <td>@(trackedPage.Anchors.Sum(a => a.TotalTime)/60) minutes</td>
-                    <td>
-                        <a class="btn btn-primary">Details</a>
-                        <a class="btn btn-danger">Delete</a>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
 
 @code {
-    
-    private List<TrackedPage> trackedPages = new();
+    PaginationState pagination = new PaginationState { ItemsPerPage = 10 };
+    [Inject] protected ToastService ToastService { get; set; } = default!;
 
-    protected override async Task OnInitializedAsync()
+
+    private ConfirmDialog dialog = default!;
+
+    private async Task DeleteTrackedPage(TrackedPage context)
     {
-        trackedPages = await DbContext.TrackedPages
-                                       .Include(tp => tp.Anchors)
-                                       .ToListAsync();
+        var options = new ConfirmDialogOptions
+            {
+                YesButtonText = "Delete",
+                YesButtonColor = ButtonColor.Danger,
+                NoButtonText = "Cancel",
+                NoButtonColor = ButtonColor.Secondary
+            };
+        var confirmation = await dialog.ShowAsync(
+            title: $"Are you sure you want to delete {context.PageUrl}?",
+            message1: $"This will delete the record {context.PageUrl}. Once deleted can not be rolled back.",
+            message2: "Do you want to proceed?",
+            options
+        );
+
+        if (confirmation)
+        {
+            ToastService.Notify(new ToastMessage(ToastType.Success, "Success", $"{context.PageUrl} deleted successfully."));
+            DbContext.TrackedPages.Remove(context);
+            await DbContext.SaveChangesAsync();
+        }
     }
 }

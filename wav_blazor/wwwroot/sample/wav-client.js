@@ -1,11 +1,6 @@
 //mongo passwd: AWH0UIANt1NAnfAV
 
-// Initialize heatmap.js
-console.log("js loaded");
-var heatmapInstance = h337.create({
-    container: document.getElementById('heatmap-container'),
-    radius: 30
-});
+var heatmapInstance;
 
 // Initialize variables to track time each anchor point is visible
 var anchorPoints = document.querySelectorAll('h1, h2, h3, h4, h5, h6, p');
@@ -21,11 +16,30 @@ anchorPoints.forEach(function (anchorPoint, i) {
     anchorDB[anchorID] = { visible: false, startTime: 0, totalTime: 0 };
 });
 
+// fetch page properties from server (IsDataCollectionActive, IsHeatmapShown)
+fetch(`https://localhost:5011/api/TrackedPage?queryPageUrl=${encodeURIComponent(pageUrl)}`)
+.then(response => response.json())
+.then(data => {
+    if (data.status == 404) { //Page not yet in DB
+        console.log('no data on server for this page, heatmap turned off', data);
+        startDataCollection();
+    } else { //Page already in DB
+        if (data[0].isDataCollectionActive) startDataCollection();
+        if (data[0].isHeatmapShown) startHeatmap();
+        console.log(data);
+    }
+        
+})
+.catch(error => {
+    console.error('Error fetching initial data:', error);
+});
+
+
+
 // Intersection Observer configuration
 var observerConfig = {
     threshold: 0.6 // Trigger callback when at least 60% of the anchor point is visible
 };
-
 
 // Callback function for Intersection Observer
 function intersectionCallback(entries) {
@@ -65,50 +79,58 @@ function updateTotalTime(anchorID) {
     //}
 }
 
-// Initialize Intersection Observer
-var observer = new IntersectionObserver(intersectionCallback, observerConfig);
-for (const anchorPoint of anchorPoints) {
-    observer.observe(anchorPoint);
-}
+function startDataCollection() {
+    //save the time when user enters the page
+    const pageStartTime = Date.now;
 
-const sendToServerInterval = setInterval(() => {
-    console.log("sending to server");
+    // Initialize Intersection Observer
+    var observer = new IntersectionObserver(intersectionCallback, observerConfig);
+    for (const anchorPoint of anchorPoints) {
+        observer.observe(anchorPoint);
+    }
 
-    const anchors = Object.keys(anchorDB)
-        .filter(key => anchorDB[key].totalTime > 0) // Don't send anchor points with totalTime = 0, save bandwidth
-        .map(key => ({
-            anchorName: key,
-            totalTime: anchorDB[key].totalTime
-        }));
+    // Send data to server every 6 seconds
+    const sendToServerInterval = setInterval(() => {
+        console.log("sending to server");
 
-    // Reset TotalTime to 0 for every entry in anchorDB
-    Object.values(anchorDB).forEach(entry => entry.totalTime = 0);
+        const anchors = Object.keys(anchorDB)
+            .filter(key => anchorDB[key].totalTime > 0) // Don't send anchor points with totalTime = 0, save bandwidth
+            .map(key => ({
+                anchorName: key,
+                totalTime: anchorDB[key].totalTime
+            }));
+        var viewTime = Date.now() - pageStartTime;
 
-    const trackedPageData = [{ // Formatted object we will send to the server
-        pageUrl: pageUrl,
-        anchors: anchors
-    }];
+        // Reset TotalTime to 0 for every entry in anchorDB
+        Object.values(anchorDB).forEach(entry => entry.totalTime = 0);
+        viewTime = 0; //reset viewTime to 0 after sending to server
 
-    fetch('https://localhost:5011/api/TrackedPage', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(trackedPageData),
-    })
-        .then(response => response.text())
-        .then(data => {
-            console.log('Success:', data);
+        const trackedPageData = [{ // Formatted object we will send to the server
+            pageUrl: pageUrl,
+            viewTime: viewTime,
+            anchors: anchors
+        }];
+
+        fetch('https://localhost:5011/api/TrackedPage', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(trackedPageData),
         })
-        .catch((error) => {
-            console.error('Error:', error);
-        });
+            .then(response => response.text())
+            .then(data => {
+                console.log('Success:', data);
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
 
 
 
-}, 6000); //end of sendToServerInterval
+    }, 6000); //end of sendToServerInterval
 
-
+} //end of startDataCollection
 
 /*HEATMAP RENDERING*/
 
@@ -125,7 +147,7 @@ function debounce(func, wait) {
     };
 }
 
-// Simple cache for fetched data
+// cache for fetched data
 let heatmapDataCache = {
     pageUrl: '',
     data: null,
@@ -145,7 +167,7 @@ function fetchAndDrawHeatmap() {
         return;
     }
 
-    fetch(`https://localhost:5011/api/TrackedPage?pageUrl=${encodeURIComponent(pageUrl)}`)
+    fetch(`https://localhost:5011/api/TrackedPage?queryPageUrl=${encodeURIComponent(pageUrl)}`)
         .then(response => response.json())
         .then(data => {
             // Cache the fetched data
@@ -205,8 +227,22 @@ function renderHeatmap(data) {
 // Debounce the updateHeatmap function to limit its execution frequency
 var fetchAndDrawHeatmapDebounced = debounce(fetchAndDrawHeatmap, 100); // Execute at most every 250ms
 
-fetchAndDrawHeatmap(); //execute once on page load
+function startHeatmap () {
+    // Initialize heatmap.js
+    console.log("starting heatmap");
+    heatmapInstance = h337.create({
+        container: document.getElementById('heatmap-container'),
+        radius: 30
+    }); 
 
-window.addEventListener('resize', () => { // Update heatmap on window resize
-    fetchAndDrawHeatmapDebounced();
-});
+    fetchAndDrawHeatmap(); //execute once on page load
+
+    window.addEventListener('resize', () => { // Update heatmap on window resize
+        fetchAndDrawHeatmapDebounced();
+    });
+
+
+    setTimeout(function() {
+        document.getElementById('heatmap-container').style.opacity = '1';
+    }, 1000);
+}

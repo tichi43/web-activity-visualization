@@ -21,8 +21,10 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<MyDbContext>(options =>
        options.UseSqlServer(builder.Configuration.GetConnectionString("MyDatabase")));
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddQuickGridEntityFrameworkAdapter();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddBlazorBootstrap();
 
 var app = builder.Build();
 
