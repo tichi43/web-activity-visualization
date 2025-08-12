@@ -1,27 +1,20 @@
-//mongo passwd: AWH0UIANt1NAnfAV
 
-var heatmapInstance;
-
-// Initialize variables to track time each anchor point is visible
-var anchorPoints = document.querySelectorAll('h1, h2, h3, h4, h5, h6, p');
-var anchorDB = {};
-// Define a global variable to store interval IDs for each anchor
-var updateIntervals = {};
 const pageUrl = window.location.href.replace(/^(https?:\/\/)?/, '').replace(/\/index\.html$/, '').replace(/\/$/, ''); // same page regardless of protocol and remove "/index.html" from the end and remove trailing slashes
-
-// Assign unique classes to each anchor point and initialize anchorDB
-anchorPoints.forEach(function (anchorPoint, i) {
-    var anchorID = 'anchor-' + i.toString().padStart(3, '0');
-    anchorPoint.classList.add(anchorID);
-    anchorDB[anchorID] = { visible: false, startTime: 0, totalTime: 0 };
-});
+var anchorPoints;
+var anchorDB = {};
+var updateIntervals = {}; // Define a global variable to store interval IDs for each anchor
+var observerConfig = { threshold: 0.6 }; // Trigger callback when at least 60% of the anchor point is visible
+var heatmapInstance;
+var isPageVisible = true
+const pageStartTime = Date.now;
+var observer = new IntersectionObserver(checkVisibilities, observerConfig);
 
 // fetch page properties from server (IsDataCollectionActive, IsHeatmapShown)
 fetch(`https://localhost:5011/api/TrackedPage?queryPageUrl=${encodeURIComponent(pageUrl)}`)
 .then(response => response.json())
 .then(data => {
     if (data.status == 404) { //Page not yet in DB
-        console.log('no data on server for this page, heatmap turned off', data);
+        console.log('no data on server for this page, heatmap turned off initially', data);
         startDataCollection();
     } else { //Page already in DB
         if (data[0].isDataCollectionActive) startDataCollection();
@@ -34,37 +27,54 @@ fetch(`https://localhost:5011/api/TrackedPage?queryPageUrl=${encodeURIComponent(
     console.error('Error fetching initial data:', error);
 });
 
+// INIT
+window.addEventListener('load', function () {
+    anchorPoints = document.querySelectorAll('h1, h2, h3, h4, h5, h6, p'); // Initialize variables to track time each anchor point is visible
 
+    anchorPoints.forEach(function (anchorPoint, i) {
+        var anchorID = 'anchor-' + i.toString().padStart(3, '0');
+        anchorPoint.classList.add(anchorID);
+        anchorDB[anchorID] = { visible: false, startTime: 0, totalTime: 0 };
+    });
+});
 
-// Intersection Observer configuration
-var observerConfig = {
-    threshold: 0.6 // Trigger callback when at least 60% of the anchor point is visible
-};
 
 // Callback function for Intersection Observer
-function intersectionCallback(entries) {
-    for (const entry of entries) {
+function checkVisibilities(entries) {
+    entries.forEach((entry) => {
         const anchorID = Array.from(entry.target.classList).find(x => x.startsWith("anchor-"));
-
         if (entry.isIntersecting) { // When anchor point becomes visible
-            if (!anchorDB[anchorID].visible) { //if it was invisible before visibility state change
-                anchorDB[anchorID].visible = true; //then register it as visible
-                anchorDB[anchorID].startTime = performance.now();
-                startPeriodicUpdate(anchorID); // Start periodic update timer for this anchor
-            }
-        } else { // When anchor point becomes invisible
-            if (anchorDB[anchorID].visible) { //if it was visible before visibility state change
-                anchorDB[anchorID].visible = false; //then register it as invisible
-                updateTotalTime(anchorID); // Update totalTime that was spent visible
-                clearInterval(updateIntervals[anchorID]); // Clear the interval
-            }
+            anchorDB[anchorID].visible = true; //then register it as visible
+            anchorDB[anchorID].startTime = performance.now();
+            setPeriodicUpdate(anchorID); // Start periodic update timer for this anchor
+        } else {// When anchor point becomes invisible
+            anchorDB[anchorID].visible = false; //then register it as invisible
+            updateTotalTime(anchorID); // Update totalTime that was spent visible
+            clearInterval(updateIntervals[anchorID]); // Clear the interval
         }
-    }
-    //updateHeatmap();
+    });
 }
 
+
+document.addEventListener("visibilitychange", function () {
+    isPageVisible = document.visibilityState === "visible";
+    if (!isPageVisible) {
+        // Pause all timers
+        Object.keys(updateIntervals).forEach(id => clearInterval(updateIntervals[id]));
+    } else {
+        // Resume timers for visible anchors
+        Object.keys(anchorDB).forEach(anchorID => {
+            if (anchorDB[anchorID].visible) {
+                startPeriodicUpdate(anchorID);
+                anchorDB[anchorID].startTime = performance.now(); // Reset start time
+            }
+        });
+    }
+});
+
+
 // Function to start periodic updates for a visible anchor
-function startPeriodicUpdate(anchorID) {
+function setPeriodicUpdate(anchorID) {
     updateIntervals[anchorID] = setInterval(function () {
         updateTotalTime(anchorID);
     }, 5000); // Update statistics every 5000 milliseconds
@@ -81,57 +91,53 @@ function updateTotalTime(anchorID) {
 
 function startDataCollection() {
     //save the time when user enters the page
-    const pageStartTime = Date.now;
 
     // Initialize Intersection Observer
-    var observer = new IntersectionObserver(intersectionCallback, observerConfig);
     for (const anchorPoint of anchorPoints) {
         observer.observe(anchorPoint);
     }
 
     // Send data to server every 6 seconds
-    const sendToServerInterval = setInterval(() => {
-        console.log("sending to server");
+    const sendToServerInterval = setInterval(() => sendToServer, 6000); //end of sendToServerInterval
 
-        const anchors = Object.keys(anchorDB)
-            .filter(key => anchorDB[key].totalTime > 0) // Don't send anchor points with totalTime = 0, save bandwidth
-            .map(key => ({
-                anchorName: key,
-                totalTime: anchorDB[key].totalTime
-            }));
-        var viewTime = Date.now() - pageStartTime;
+}
+function sendToServer() { 
+    console.log("sending to server");
 
-        // Reset TotalTime to 0 for every entry in anchorDB
-        Object.values(anchorDB).forEach(entry => entry.totalTime = 0);
-        viewTime = 0; //reset viewTime to 0 after sending to server
+    const anchors = Object.keys(anchorDB)
+        .filter(key => anchorDB[key].totalTime > 0) // Don't send anchor points with totalTime = 0, save bandwidth
+        .map(key => ({
+            anchorName: key,
+            totalTime: anchorDB[key].totalTime
+        }));
+    var viewTime = performance.now();
 
-        const trackedPageData = [{ // Formatted object we will send to the server
-            pageUrl: pageUrl,
-            viewTime: viewTime,
-            anchors: anchors
-        }];
+    // Reset TotalTime to 0 for every entry in anchorDB
+    Object.values(anchorDB).forEach(entry => entry.totalTime = 0);
+    viewTime = 0; //reset viewTime to 0 after sending to server
 
-        fetch('https://localhost:5011/api/TrackedPage', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(trackedPageData),
+    const trackedPageData = [{ // Formatted object we will send to the server
+        pageUrl: pageUrl,
+        viewTime: viewTime,
+        anchors: anchors
+    }];
+
+    fetch('https://localhost:5011/api/TrackedPage', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(trackedPageData),
+    })
+        .then(response => response.text())
+        .then(data => {
+            console.log('Success:', data);
         })
-            .then(response => response.text())
-            .then(data => {
-                console.log('Success:', data);
-            })
-            .catch((error) => {
-                console.error('Error:', error);
-            });
+        .catch((error) => {
+            console.error('Error:', error);
+        });
 
-
-
-    }, 6000); //end of sendToServerInterval
-
-} //end of startDataCollection
-
+}
 /*HEATMAP RENDERING*/
 
 // Debounce function to limit execution frequency

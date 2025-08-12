@@ -19,8 +19,7 @@ builder.WebHost.ConfigureKestrel((context, options) =>
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddControllers();
 builder.Services.AddDbContext<MyDbContext>(options =>
-       options.UseSqlServer(builder.Configuration.GetConnectionString("MyDatabase")));
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+       options.UseSqlServer(builder.Configuration.GetConnectionString("MyDatabase")+"Password="+builder.Configuration["ConnectionStrings:DBPASS"]));
 builder.Services.AddQuickGridEntityFrameworkAdapter();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
