@@ -4,12 +4,21 @@ const pageUrl = window.location.href
     .replace(/\/$/, '');
 
 let anchorPoints = [];
-let updateIntervals = {};
-const observerConfig = { threshold: 0.6 };
 let heatmapInstance;
 let isPageVisible = true;
+let updateCounter = 0;
+let globalTimer = null;
 const pageStartTime = Date.now();
-const observer = new IntersectionObserver(checkVisibilities, observerConfig);
+const observerConfig = { threshold: 0.6 };
+
+// Intersection Observer to track visibility
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+        const anchorPoint = entry.target;
+        const anchorID = Array.from(entry.target.classList).find(x => x.startsWith("anchor-"));
+        anchorPoint.dataset.visible = entry.isIntersecting ? "true" : "false";
+    });
+}, observerConfig);
 
 // fetch page properties from server (IsDataCollectionActive, IsHeatmapShown)
 fetch(`https://localhost:5011/api/TrackedPage?queryPageUrl=${encodeURIComponent(pageUrl)}`)
@@ -35,65 +44,42 @@ window.addEventListener('load', function () {
         const anchorID = 'anchor-' + i.toString().padStart(3, '0');
         anchorPoint.classList.add(anchorID);
         anchorPoint.dataset.visible = "false";
-        anchorPoint.dataset.startTime = "0";
         anchorPoint.dataset.totalTime = "0";
     });
 });
 
-// Callback function for Intersection Observer
-function checkVisibilities(entries) {
-    entries.forEach((entry) => {
-        const anchorID = Array.from(entry.target.classList).find(x => x.startsWith("anchor-"));
-        const anchorPoint = entry.target;
-        if (entry.isIntersecting) {
-            anchorPoint.dataset.visible = "true";
-            anchorPoint.dataset.startTime = performance.now().toString();
-            setPeriodicUpdate(anchorID, anchorPoint);
-        } else {
-            anchorPoint.dataset.visible = "false";
-            updateTotalTime(anchorID, anchorPoint);
-            clearInterval(updateIntervals[anchorID]);
+function startDataCollection() {
+    anchorPoints.forEach(anchorPoint => observer.observe(anchorPoint));
+    if (globalTimer) clearInterval(globalTimer);
+    globalTimer = setInterval(() => {
+        updateCounter++;
+        updateTotalTimes();
+        if (updateCounter % 5 === 0) {
+            sendToServer();
+        }
+    }, 1000);
+}
+
+function updateTotalTimes() {
+    anchorPoints.forEach(anchorPoint => {
+        if (anchorPoint.dataset.visible === "true") {
+            anchorPoint.dataset.totalTime = (
+                parseInt(anchorPoint.dataset.totalTime) + 1
+            ).toString();
         }
     });
 }
 
+// Handle page visibility changes
 document.addEventListener("visibilitychange", function () {
     isPageVisible = document.visibilityState === "visible";
-    if (!isPageVisible) {
-        Object.keys(updateIntervals).forEach(id => clearInterval(updateIntervals[id]));
-    } else {
-        anchorPoints.forEach(anchorPoint => {
-            const anchorID = Array.from(anchorPoint.classList).find(x => x.startsWith("anchor-"));
-            if (anchorPoint.dataset.visible === "true") {
-                setPeriodicUpdate(anchorID, anchorPoint);
-                anchorPoint.dataset.startTime = performance.now().toString();
-            }
-        });
+    if (!isPageVisible && globalTimer) {
+        clearInterval(globalTimer);
+        globalTimer = null;
+    } else if (isPageVisible && !globalTimer) {
+        startDataCollection();
     }
 });
-
-// Function to start periodic updates for a visible anchor
-function setPeriodicUpdate(anchorID, anchorPoint) {
-    clearInterval(updateIntervals[anchorID]);
-    updateIntervals[anchorID] = setInterval(function () {
-        updateTotalTime(anchorID, anchorPoint);
-    }, 5000);
-}
-
-// Function to update totalTime for an anchor
-function updateTotalTime(anchorID, anchorPoint) {
-    const startTime = parseFloat(anchorPoint.dataset.startTime);
-    const elapsedTime = performance.now() - startTime;
-    anchorPoint.dataset.totalTime = (
-        parseInt(anchorPoint.dataset.totalTime) + Math.floor(elapsedTime / 1000)
-    ).toString();
-    anchorPoint.dataset.startTime = performance.now().toString();
-}
-
-function startDataCollection() {
-    anchorPoints.forEach(anchorPoint => observer.observe(anchorPoint));
-    setInterval(sendToServer, 6000);
-}
 
 function sendToServer() {
     console.log("sending to server");
