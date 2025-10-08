@@ -3,7 +3,7 @@ const pageUrl = window.location.href
     .replace(/\/index\.html$/, '')
     .replace(/\/$/, '');
 
-let anchorPoints = [];
+let anchorDB = [];
 let heatmapInstance;
 let isPageVisible = true;
 let updateCounter = 0;
@@ -11,14 +11,16 @@ let globalTimer = null;
 const pageStartTime = Date.now();
 const observerConfig = { threshold: 0.6 };
 
-// Intersection Observer to track visibility
-const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-        const anchorPoint = entry.target;
-        const anchorID = Array.from(entry.target.classList).find(x => x.startsWith("anchor-"));
-        anchorPoint.dataset.visible = entry.isIntersecting ? "true" : "false";
+// INIT
+window.addEventListener('load', function () {
+    anchorDB = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6, p'));
+    anchorDB.forEach(function (anchorPoint, i) {
+        anchorPoint.dataset.anchorID = ('anchor-' + i.toString().padStart(3, '0'));
+        anchorPoint.dataset.visible = "false";
+        anchorPoint.dataset.totalTime = "0";
     });
-}, observerConfig);
+});
+
 
 // fetch page properties from server (IsDataCollectionActive, IsHeatmapShown)
 fetch(`https://localhost:5011/api/TrackedPage?queryPageUrl=${encodeURIComponent(pageUrl)}`)
@@ -26,9 +28,13 @@ fetch(`https://localhost:5011/api/TrackedPage?queryPageUrl=${encodeURIComponent(
     .then(data => {
         if (data.status == 404) {
             console.log('no data on server for this page, heatmap turned off initially', data);
+            anchorDB.forEach(anchorPoint => observer.observe(anchorPoint));
             startDataCollection();
         } else {
-            if (data[0].isDataCollectionActive) startDataCollection();
+            if (data[0].isDataCollectionActive) {
+                anchorDB.forEach(anchorPoint => observer.observe(anchorPoint));
+                startDataCollection();
+            }
             if (data[0].isHeatmapShown) startHeatmap();
             console.log(data);
         }
@@ -37,37 +43,62 @@ fetch(`https://localhost:5011/api/TrackedPage?queryPageUrl=${encodeURIComponent(
         console.error('Error fetching initial data:', error);
     });
 
-// INIT
-window.addEventListener('load', function () {
-    anchorPoints = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6, p'));
-    anchorPoints.forEach(function (anchorPoint, i) {
-        const anchorID = 'anchor-' + i.toString().padStart(3, '0');
-        anchorPoint.classList.add(anchorID);
-        anchorPoint.dataset.visible = "false";
-        anchorPoint.dataset.totalTime = "0";
-    });
-});
+// Intersection Observer to track visibility
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => entry.target.dataset.visible = entry.isIntersecting);
+}, observerConfig);
 
 function startDataCollection() {
-    anchorPoints.forEach(anchorPoint => observer.observe(anchorPoint));
     if (globalTimer) clearInterval(globalTimer);
+
     globalTimer = setInterval(() => {
         updateCounter++;
-        updateTotalTimes();
+
+        anchorDB.forEach(anchorPoint => {
+            if (anchorPoint.dataset.visible) {
+                anchorPoint.dataset.totalTime = (
+                    parseInt(anchorPoint.dataset.totalTime) + 1
+                ).toString();
+            }
+        });
+
         if (updateCounter % 5 === 0) {
             sendToServer();
         }
     }, 1000);
 }
 
-function updateTotalTimes() {
-    anchorPoints.forEach(anchorPoint => {
-        if (anchorPoint.dataset.visible === "true") {
-            anchorPoint.dataset.totalTime = (
-                parseInt(anchorPoint.dataset.totalTime) + 1
-            ).toString();
-        }
-    });
+function sendToServer() {
+    console.log("sending to server");
+    const anchorsDataObj = anchorDB
+        .map(a => ({
+            anchorName: a.dataset.anchorID,
+            totalTime: parseInt(a.dataset.totalTime)
+        }))
+        .filter(a => a.totalTime > 0);
+
+    anchorDB.forEach(anchorPoint => anchorPoint.dataset.totalTime = "0");
+
+    const dataToSend = [{
+        pageUrl: pageUrl,
+        pageViewTime: 0,
+        anchorsData: anchorsDataObj
+    }];
+
+    fetch('https://localhost:5011/api/TrackedPage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToSend),
+    })
+        .then(response => response.text())
+        .then(data => {
+            console.log('Success:', data);
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+
+    updateCounter = 0;
 }
 
 // Handle page visibility changes
@@ -81,37 +112,6 @@ document.addEventListener("visibilitychange", function () {
     }
 });
 
-function sendToServer() {
-    console.log("sending to server");
-    const anchors = anchorPoints
-        .map(anchorPoint => {
-            const anchorID = Array.from(anchorPoint.classList).find(x => x.startsWith("anchor-"));
-            const totalTime = parseInt(anchorPoint.dataset.totalTime);
-            return { anchorName: anchorID, totalTime: totalTime };
-        })
-        .filter(anchor => anchor.totalTime > 0);
-
-    anchorPoints.forEach(anchorPoint => anchorPoint.dataset.totalTime = "0");
-
-    const trackedPageData = [{
-        pageUrl: pageUrl,
-        viewTime: 0,
-        anchors: anchors
-    }];
-
-    fetch('https://localhost:5011/api/TrackedPage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(trackedPageData),
-    })
-        .then(response => response.text())
-        .then(data => {
-            console.log('Success:', data);
-        })
-        .catch((error) => {
-            console.error('Error:', error);
-        });
-}
 
 /*HEATMAP RENDERING*/
 
