@@ -1,13 +1,15 @@
 const pageUrl = window.location.href
-    .replace(/^(https?:\/\/)?/, '')
-    .replace(/\/index\.html$/, '')
-    .replace(/\/$/, '');
+    .replace(/^(https?:\/\/)?/, '')                // Remove protocol
+    .replace(/\?.*$/, '')                          // Remove query string and question mark
+    .replace(/\/index\.(html?|php|aspx?|jsp|cfm)$/i, '')    // Remove /index.html, /index.htm, /index.php, /index.aspx
+    .replace(/\/$/, '');                           // Remove trailing slash
 
 let anchorDB = [];
 let heatmapInstance;
 let isPageVisible = true;
 let updateCounter = 0;
 let globalTimer = null;
+let isInit = true;
 const pageStartTime = Date.now();
 const observerConfig = { threshold: 0.6 };
 
@@ -55,10 +57,8 @@ function startDataCollection() {
         updateCounter++;
 
         anchorDB.forEach(anchorPoint => {
-            if (anchorPoint.dataset.visible) {
-                anchorPoint.dataset.totalTime = (
-                    parseInt(anchorPoint.dataset.totalTime) + 1
-                ).toString();
+            if (anchorPoint.dataset.visible == "true") {
+                anchorPoint.dataset.totalTime = (parseInt(anchorPoint.dataset.totalTime) + 1).toString();
             }
         });
 
@@ -69,22 +69,35 @@ function startDataCollection() {
 }
 
 function sendToServer() {
+    let dataToSend;
     console.log("sending to server");
-    const anchorsDataObj = anchorDB
+    let anchorsDataObj = anchorDB
         .map(a => ({
             anchorName: a.dataset.anchorID,
             totalTime: parseInt(a.dataset.totalTime)
-        }))
-        .filter(a => a.totalTime > 0);
-
+        }));
     anchorDB.forEach(anchorPoint => anchorPoint.dataset.totalTime = "0");
 
-    const dataToSend = [{
-        pageUrl: pageUrl,
-        pageViewTime: 0,
-        anchorsData: anchorsDataObj
-    }];
+    if (isInit) {
+        isInit = false;
+        dataToSend = [{
+            pageUrl: pageUrl,
+            pageViewTime: 0,
+            newVisit: true,
+            anchorsData: anchorsDataObj
+        }];
+    }
+    else
+    {
+        anchorsDataObj = anchorsDataObj.filter(a => a.totalTime > 0);
+        dataToSend = [{
+            pageUrl: pageUrl,
+            pageViewTime: 0,
+            anchorsData: anchorsDataObj
+        }];
+    }
 
+    console.log(dataToSend);
     fetch('https://localhost:5011/api/TrackedPage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -33,7 +33,7 @@ public class TrackedPageController : ControllerBase
             if (existingPage != null)
             {
                 // Page exists, update or add anchors
-                foreach (var anchorDto in trackedPageDto.Anchors)
+                foreach (var anchorDto in trackedPageDto.AnchorsData)
                 {
                     var existingAnchor = existingPage.Anchors
                         .FirstOrDefault(a => a.AnchorName == anchorDto.AnchorName);
@@ -61,7 +61,7 @@ public class TrackedPageController : ControllerBase
                 var newPage = new TrackedPage
                 {
                     PageUrl = trackedPageDto.PageUrl,
-                    Anchors = trackedPageDto.Anchors.Select(a => new Anchor
+                    Anchors = trackedPageDto.AnchorsData.Select(a => new Anchor
                     {
                         AnchorName = a.AnchorName,
                         TotalTime = a.TotalTime
@@ -69,6 +69,11 @@ public class TrackedPageController : ControllerBase
                 };
 
                 _context.TrackedPages.Add(newPage);
+                existingPage = newPage;
+            }
+            if (trackedPageDto.newVisit)
+            {
+                existingPage.TotalPageViews++;
             }
         }
 

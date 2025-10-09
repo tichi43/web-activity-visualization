@@ -27,7 +27,8 @@ public class Anchor
 public class TrackedPageDto
 {
     public required string PageUrl { get; set; }
-    public required List<AnchorDto> Anchors { get; set; }
+    public required List<AnchorDto> AnchorsData { get; set; }
+    public bool newVisit { get; set; }
 }
 
 public class AnchorDto
