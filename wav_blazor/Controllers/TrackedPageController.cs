@@ -53,6 +53,8 @@ public class TrackedPageController : ControllerBase
                             TotalTime = anchorDto.TotalTime
                         });
                     }
+
+
                 }
             }
             else
@@ -75,6 +77,9 @@ public class TrackedPageController : ControllerBase
             {
                 existingPage.TotalPageViews++;
             }
+
+            existingPage.LastUpdated = DateTime.Now;
+
         }
 
         await _context.SaveChangesAsync();

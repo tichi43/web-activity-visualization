@@ -10,8 +10,17 @@
 else
 {
 
-    <p>@currentPage.PageUrl</p>
-    <p>@currentPage.Anchors.Count</p>
+    <p class="fw-bold"><a href="https://@currentPage.PageUrl?adminView=true">@currentPage.PageUrl</a></p>
+    <p>Number of anchors: @currentPage.Anchors.Count</p>
+    <p>Total page view counter: @currentPage.TotalPageViews</p>
+    <p>Total page view time: @currentPage.TotalViewTime</p>
+    <p class="small">Last update received: @currentPage.LastUpdated</p>
+    <Switch @bind-Value="@currentPage.IsDataCollectionActive" Label="data collection active" />
+    <Switch @bind-Value="@currentPage.IsHeatmapShown" Label="Show heatmap on page publicly" />
+    <button @onclick="() => DbContext.SaveChangesAsync()" class="btn btn-success btn-sm mt-2 mb-3">Save</button>
+
+    <iframe class="d-block border border-dark" width="100%" src="https://@currentPage.PageUrl?adminView=true"></iframe>
+
 }
 
 
@@ -25,6 +34,5 @@ else
     {
         currentPage = DbContext.TrackedPages.Include(tp => tp.Anchors).FirstOrDefault(p => p.TrackedPageId == TrackedPageId);
     }
-
 
 }

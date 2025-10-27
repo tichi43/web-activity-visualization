@@ -1,7 +1,7 @@
 const pageUrl = window.location.href
     .replace(/^(https?:\/\/)?/, '')                // Remove protocol
     .replace(/\?.*$/, '')                          // Remove query string and question mark
-    .replace(/\/index\.(html?|php|aspx?|jsp|cfm)$/i, '')    // Remove /index.html, /index.htm, /index.php, /index.aspx
+    //.replace(/\/index\.(html?|php|aspx?|jsp|cfm)$/i, '')    // Remove /index.html, /index.htm, /index.php, /index.aspx
     .replace(/\/$/, '');                           // Remove trailing slash
 
 let anchorDB = [];
@@ -21,8 +21,11 @@ window.addEventListener('load', function () {
         anchorPoint.dataset.visible = "false";
         anchorPoint.dataset.totalTime = "0";
     });
+
+
 });
 
+const adminView = decodeURIComponent(new URLSearchParams(window.location.search).get('adminView') || '').toLowerCase() === 'true';
 
 // fetch page properties from server (IsDataCollectionActive, IsHeatmapShown)
 fetch(`https://localhost:5011/api/TrackedPage?queryPageUrl=${encodeURIComponent(pageUrl)}`)
@@ -32,12 +35,33 @@ fetch(`https://localhost:5011/api/TrackedPage?queryPageUrl=${encodeURIComponent(
             console.log('no data on server for this page, heatmap turned off initially', data);
             anchorDB.forEach(anchorPoint => observer.observe(anchorPoint));
             startDataCollection();
+            // Handle page visibility changes
+            document.addEventListener("visibilitychange", function () {
+                isPageVisible = document.visibilityState === "visible";
+                if (!isPageVisible && globalTimer) {
+                    clearInterval(globalTimer);
+                    globalTimer = null;
+                } else if (isPageVisible && !globalTimer) {
+                    startDataCollection();
+                }
+            });
         } else {
-            if (data[0].isDataCollectionActive) {
+            if (data[0].isDataCollectionActive && !adminView) {
                 anchorDB.forEach(anchorPoint => observer.observe(anchorPoint));
                 startDataCollection();
+                // Handle page visibility changes
+                document.addEventListener("visibilitychange", function () {
+                    isPageVisible = document.visibilityState === "visible";
+                    if (!isPageVisible && globalTimer) {
+                        clearInterval(globalTimer);
+                        globalTimer = null;
+                    } else if (isPageVisible && !globalTimer) {
+                        startDataCollection();
+                    }
+                });
             }
-            if (data[0].isHeatmapShown) startHeatmap();
+
+            if (data[0].isHeatmapShown || adminView) startHeatmap();
             console.log(data);
         }
     })
@@ -66,6 +90,8 @@ function startDataCollection() {
             sendToServer();
         }
     }, 1000);
+
+
 }
 
 function sendToServer() {
@@ -114,16 +140,7 @@ function sendToServer() {
     updateCounter = 0;
 }
 
-// Handle page visibility changes
-document.addEventListener("visibilitychange", function () {
-    isPageVisible = document.visibilityState === "visible";
-    if (!isPageVisible && globalTimer) {
-        clearInterval(globalTimer);
-        globalTimer = null;
-    } else if (isPageVisible && !globalTimer) {
-        startDataCollection();
-    }
-});
+
 
 
 /*HEATMAP RENDERING*/
