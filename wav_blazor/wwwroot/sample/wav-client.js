@@ -1,20 +1,65 @@
+//Load external libraries
+const script = document.createElement('script');
+script.src = 'https://cdn.jsdelivr.net/npm/heatmap.js/build/heatmap.min.js';
+script.async = true;
+document.head.appendChild(script);
+
+//Get pageUrl and normalize it
 const pageUrl = window.location.href
     .replace(/^(https?:\/\/)?/, '')                // Remove protocol
     .replace(/\?.*$/, '')                          // Remove query string and question mark
     //.replace(/\/index\.(html?|php|aspx?|jsp|cfm)$/i, '')    // Remove /index.html, /index.htm, /index.php, /index.aspx
     .replace(/\/$/, '');                           // Remove trailing slash
 
+//Global variables 
 let anchorDB = [];
 let heatmapInstance;
 let isPageVisible = true;
 let updateCounter = 0;
 let globalTimer = null;
-let isInit = true;
-const pageStartTime = Date.now();
-const observerConfig = { threshold: 0.6 };
+let isInit = true;  //this is 
+const observerConfig = { threshold: 0.6 };  //a paragraph is considered "visible" if at least 60% of it is visible
+const adminView = decodeURIComponent(new URLSearchParams(window.location.search).get('adminView') || '').toLowerCase() === 'true'; //if adminView is set, data collection is disabled and only heatmap is shown
 
-// INIT
+// Define Intersection Observer to track visibility
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => entry.target.dataset.visible = entry.isIntersecting);
+}, observerConfig);
+function startDataCollection() {
+    if (globalTimer) clearInterval(globalTimer);
+    globalTimer = setInterval(() => {
+        updateCounter++;
+        anchorDB.forEach(anchorPoint => {
+            if (anchorPoint.dataset.visible == "true") {
+                anchorPoint.dataset.totalTime = (parseInt(anchorPoint.dataset.totalTime) + 1).toString();
+            }
+        });
+        if (updateCounter % 5 === 0) {
+            sendToServer();
+        }
+    }, 1000);
+}
+function stopDataCollection() {
+    clearInterval(globalTimer);
+    globalTimer = null;
+}
+function initializeDataCollection() {
+    anchorDB.forEach(anchorPoint => observer.observe(anchorPoint));
+    document.addEventListener("visibilitychange", function () {
+        isPageVisible = document.visibilityState === "visible";
+        if (!isPageVisible && globalTimer) {
+            clearInterval(globalTimer);
+            globalTimer = null;
+        } else if (isPageVisible && !globalTimer) {
+            startDataCollection();
+        }
+    });
+    startDataCollection();
+}
+
+//MAIN()
 window.addEventListener('load', function () {
+    //Select and tag anchor points
     anchorDB = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6, p'));
     anchorDB.forEach(function (anchorPoint, i) {
         anchorPoint.dataset.anchorID = ('anchor-' + i.toString().padStart(3, '0'));
@@ -23,76 +68,49 @@ window.addEventListener('load', function () {
     });
 
 
-});
-
-const adminView = decodeURIComponent(new URLSearchParams(window.location.search).get('adminView') || '').toLowerCase() === 'true';
-
-// fetch page properties from server (IsDataCollectionActive, IsHeatmapShown)
-fetch(`https://localhost:5011/api/TrackedPage?queryPageUrl=${encodeURIComponent(pageUrl)}`)
-    .then(response => response.json())
-    .then(data => {
-        if (data.status == 404) {
-            console.log('no data on server for this page, heatmap turned off initially', data);
-            anchorDB.forEach(anchorPoint => observer.observe(anchorPoint));
-            startDataCollection();
-            // Handle page visibility changes
-            document.addEventListener("visibilitychange", function () {
-                isPageVisible = document.visibilityState === "visible";
-                if (!isPageVisible && globalTimer) {
-                    clearInterval(globalTimer);
-                    globalTimer = null;
-                } else if (isPageVisible && !globalTimer) {
-                    startDataCollection();
+    // fetch page properties from server (IsDataCollectionActive, IsHeatmapShown)
+    fetch(`https://localhost:5011/api/TrackedPage?queryPageUrl=${encodeURIComponent(pageUrl)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 404) {
+                console.log('no data on server for this page, heatmap turned off initially', data);
+                initializeDataCollection();
+            } else {
+                if (data[0].isDataCollectionActive && !adminView) {
+                    initializeDataCollection();
                 }
-            });
-        } else {
-            if (data[0].isDataCollectionActive && !adminView) {
-                anchorDB.forEach(anchorPoint => observer.observe(anchorPoint));
-                startDataCollection();
-                // Handle page visibility changes
-                document.addEventListener("visibilitychange", function () {
-                    isPageVisible = document.visibilityState === "visible";
-                    if (!isPageVisible && globalTimer) {
-                        clearInterval(globalTimer);
-                        globalTimer = null;
-                    } else if (isPageVisible && !globalTimer) {
-                        startDataCollection();
-                    }
-                });
+
+                if (data[0].isHeatmapShown || adminView) {
+                    startHeatmap();
+                }
+
+                console.log("fetched initial data from server:", data);
             }
-
-            if (data[0].isHeatmapShown || adminView) startHeatmap();
-            console.log(data);
-        }
-    })
-    .catch(error => {
-        console.error('Error fetching initial data:', error);
-    });
-
-// Intersection Observer to track visibility
-const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => entry.target.dataset.visible = entry.isIntersecting);
-}, observerConfig);
-
-function startDataCollection() {
-    if (globalTimer) clearInterval(globalTimer);
-
-    globalTimer = setInterval(() => {
-        updateCounter++;
-
-        anchorDB.forEach(anchorPoint => {
-            if (anchorPoint.dataset.visible == "true") {
-                anchorPoint.dataset.totalTime = (parseInt(anchorPoint.dataset.totalTime) + 1).toString();
-            }
+        })
+        .catch(error => {
+            console.error('Error fetching initial data:', error);
         });
 
-        if (updateCounter % 5 === 0) {
-            sendToServer();
-        }
-    }, 1000);
+    //Create heatmap container and style it
+    const heatmapDiv = document.createElement('div');
+    heatmapDiv.id = 'heatmap-container';
+    document.body.appendChild(heatmapDiv);
+    const style = document.createElement('style');
+    style.textContent = `
+    #heatmap-container {
+        opacity: 0;
+        position: fixed !important;
+        top: 0;
+        right: 0;
+        width: 20px;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 9999;
+        transition: opacity 1000ms;
+    }`;
+    document.head.appendChild(style);
+}); //End of MAIN()
 
-
-}
 
 function sendToServer() {
     let dataToSend;
@@ -108,7 +126,6 @@ function sendToServer() {
         isInit = false;
         dataToSend = [{
             pageUrl: pageUrl,
-            pageViewTime: 0,
             newVisit: true,
             anchorsData: anchorsDataObj
         }];
@@ -118,7 +135,6 @@ function sendToServer() {
         anchorsDataObj = anchorsDataObj.filter(a => a.totalTime > 0);
         dataToSend = [{
             pageUrl: pageUrl,
-            pageViewTime: 0,
             anchorsData: anchorsDataObj
         }];
     }
@@ -162,26 +178,26 @@ let heatmapDataCache = {
     fetchInterval: 30000 // 30 seconds
 };
 
-// Optimized updateHeatmap function with error handling and requestAnimationFrame
-function fetchAndDrawHeatmap() {
-    const currentTime = Date.now();
-    if (heatmapDataCache.pageUrl === pageUrl &&
-        heatmapDataCache.data &&
-        (currentTime - heatmapDataCache.lastFetch < heatmapDataCache.fetchInterval)) {
-        renderHeatmap(heatmapDataCache.data);
-        return;
-    }
 
-    fetch(`https://localhost:5011/api/TrackedPage?queryPageUrl=${encodeURIComponent(pageUrl)}`)
-        .then(response => response.json())
-        .then(data => {
-            heatmapDataCache = { pageUrl, data, lastFetch: Date.now(), fetchInterval: heatmapDataCache.fetchInterval };
-            console.log('Fetched heatmap data:', data);
-            renderHeatmap(data);
-        })
-        .catch(error => {
-            console.error('Error fetching heatmap data:', error);
-        });
+function fetchAndRenderHeatmap() {
+    if (
+        heatmapDataCache.pageUrl !== pageUrl ||
+        !heatmapDataCache.data ||
+        (Date.now() - heatmapDataCache.lastFetch > heatmapDataCache.fetchInterval)
+    ) {
+        fetch(`https://localhost:5011/api/TrackedPage?queryPageUrl=${encodeURIComponent(pageUrl)}`)
+            .then(response => response.json())
+            .then(data => {
+                heatmapDataCache = { pageUrl, data, lastFetch: Date.now(), fetchInterval: heatmapDataCache.fetchInterval };
+                renderHeatmap(data);
+                console.log('Fetched heatmap data:', data);
+            })
+            .catch(error => {
+                console.error('Error fetching heatmap data:', error);
+            });
+    } else {
+        renderHeatmap(heatmapDataCache.data);
+    }
 }
 
 // Render heatmap data
@@ -196,7 +212,7 @@ function renderHeatmap(data) {
                 const documentHeight = document.documentElement.scrollHeight;
                 const viewportHeight = window.innerHeight;
                 anchorsData.forEach(anchorData => {
-                    const anchorElement = document.querySelector('.' + anchorData.anchorName);
+                    const anchorElement = document.querySelector('[data-anchor-i-d="'+anchorData.anchorName+'"]');
                     if (anchorElement) {
                         const anchorPosition = anchorElement.getBoundingClientRect().top + window.scrollY;
                         let yPos = (anchorPosition / documentHeight) * viewportHeight;
@@ -213,10 +229,13 @@ function renderHeatmap(data) {
                 });
             });
         }
+        setTimeout(function () {    //fade in heatmap with a 1 second delay
+            document.getElementById('heatmap-container').style.opacity = '1';
+        }, 1000);
     }
 }
 
-var fetchAndDrawHeatmapDebounced = debounce(fetchAndDrawHeatmap, 100);
+var fetchAndDrawHeatmapDebounced = debounce(fetchAndRenderHeatmap, 100);
 
 function startHeatmap() {
     console.log("starting heatmap");
@@ -225,13 +244,9 @@ function startHeatmap() {
         radius: 30
     });
 
-    fetchAndDrawHeatmap();
+    fetchAndRenderHeatmap();
 
     window.addEventListener('resize', () => {
         fetchAndDrawHeatmapDebounced();
     });
-
-    setTimeout(function () {
-        document.getElementById('heatmap-container').style.opacity = '1';
-    }, 1000);
 }

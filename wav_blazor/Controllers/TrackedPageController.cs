@@ -58,8 +58,7 @@ public class TrackedPageController : ControllerBase
                 }
             }
             else
-            {
-                // Page does not exist, create new
+            {   // Page does not exist, create new
                 var newPage = new TrackedPage
                 {
                     PageUrl = trackedPageDto.PageUrl,
@@ -73,11 +72,13 @@ public class TrackedPageController : ControllerBase
                 _context.TrackedPages.Add(newPage);
                 existingPage = newPage;
             }
+
             if (trackedPageDto.newVisit)
             {
                 existingPage.TotalPageViews++;
             }
 
+            existingPage.TotalViewTime++;   //add 5 seconds to total view time
             existingPage.LastUpdated = DateTime.Now;
 
         }

@@ -19,7 +19,13 @@ builder.WebHost.ConfigureKestrel((context, options) =>
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddControllers();
 builder.Services.AddDbContext<MyDbContext>(options =>
-       options.UseSqlServer(builder.Configuration.GetConnectionString("MyDatabase")+"Password="+builder.Configuration["ConnectionStrings:DBPASS"]));
+       options.UseSqlServer(builder.Configuration.GetConnectionString("MyDatabase")+"Password="+builder.Configuration["ConnectionStrings:DBPASS"],
+            sqlOptions => sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 10, // More retries
+                maxRetryDelay: TimeSpan.FromSeconds(7),
+                errorNumbersToAdd: null
+            )
+));
 builder.Services.AddQuickGridEntityFrameworkAdapter();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

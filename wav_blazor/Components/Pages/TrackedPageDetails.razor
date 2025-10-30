@@ -1,6 +1,8 @@
 ﻿@page "/TrackedPageDetails/{TrackedPageId:int}"
 @inject Models.MyDbContext DbContext
 
+<a href="javascript:history.back()" class="link-primary mb-3 d-block">← Back</a>
+
 <h3>TrackedPageDetails</h3>
 
 @if (currentPage == null)
@@ -13,13 +15,13 @@ else
     <p class="fw-bold"><a href="https://@currentPage.PageUrl?adminView=true">@currentPage.PageUrl</a></p>
     <p>Number of anchors: @currentPage.Anchors.Count</p>
     <p>Total page view counter: @currentPage.TotalPageViews</p>
-    <p>Total page view time: @currentPage.TotalViewTime</p>
+    <p>Total page view time: @(currentPage.TotalViewTime*5) seconds = @(Math.Round((float)currentPage.TotalViewTime/12, 1)) minutes</p>
     <p class="small">Last update received: @currentPage.LastUpdated</p>
     <Switch @bind-Value="@currentPage.IsDataCollectionActive" Label="data collection active" />
     <Switch @bind-Value="@currentPage.IsHeatmapShown" Label="Show heatmap on page publicly" />
     <button @onclick="() => DbContext.SaveChangesAsync()" class="btn btn-success btn-sm mt-2 mb-3">Save</button>
 
-    <iframe class="d-block border border-dark" width="100%" src="https://@currentPage.PageUrl?adminView=true"></iframe>
+    <iframe class="d-block border border-dark" width="100%" height="800px" src="https://@currentPage.PageUrl?adminView=true"></iframe>
 
 }
 

@@ -17,16 +17,23 @@
         </select>
     </div>
 
-    <div class="card-body">
-        <QuickGrid Items="DbContext.TrackedPages.Include(tp => tp.Anchors)" Pagination="pagination" Class="table table-striped table-hover align-middle">
+    <div class="card-body  table-responsive">
+        <QuickGrid Items="DbContext.TrackedPages.Include(tp => tp.Anchors)" Pagination="pagination" Class="table table-sm table-striped table-hover align-middle">
             <PropertyColumn Property="q => q.TrackedPageId" Sortable="true" Title="ID"/>
             <TemplateColumn Title="URL" SortBy="GridSort<TrackedPage>.ByAscending(p => p.PageUrl)">
-                <a href="https://@context.PageUrl">@context.PageUrl</a>
+                <a href="TrackedPageDetails/@context.TrackedPageId">@context.PageUrl</a>
             </TemplateColumn>
-            <PropertyColumn Property="q => q.Anchors.Count" Sortable="true" />
+            <PropertyColumn Property="q => q.TotalPageViews" Sortable="true" />
+            <PropertyColumn Property="q => q.TotalViewTime/12" Sortable="true" Title="TotalViewTime (minutes)"/>
+            <TemplateColumn Title="Heatmap shown?" Sortable="true">
+                <Switch @bind-Value="@context.IsDataCollectionActive" @onclick="() => OnSwitchChanged(context)" Disabled="@isSaving" />
+            </TemplateColumn>
+            <TemplateColumn Title="Heatmap shown?" Sortable="true" >
+                <Switch @bind-Value="@context.IsHeatmapShown" @onclick="() => OnSwitchChanged(context)" Disabled="@isSaving"/>
+            </TemplateColumn>
             <TemplateColumn Title="Actions" Align="Align.Right">
                 <div class="btn-group btn-group-sm">
-                    <a href="TrackedPageDetails/@context.TrackedPageId" class="btn btn-primary">Details</a>
+                    <button @onclick="() => ResetTrackedPage(context)" class="btn btn-warning">Reset</button>
                     <button @onclick="() => DeleteTrackedPage(context)" class="btn btn-danger">Delete</button>
                 </div>
         
@@ -47,6 +54,34 @@
 
 
     private ConfirmDialog dialog = default!;
+    private bool isSaving = false;
+
+    private async Task ResetTrackedPage(TrackedPage context)
+    {
+        var options = new ConfirmDialogOptions
+        {
+            YesButtonText = "Reset",
+            YesButtonColor = ButtonColor.Danger,
+            NoButtonText = "Cancel",
+            NoButtonColor = ButtonColor.Secondary
+        };
+        var confirmation = await dialog.ShowAsync(
+            title: $"Are you sure you want to reset {context.PageUrl}?",
+            message1: $"This will reset all data for record {context.PageUrl}. Once reset can not be rolled back.",
+            message2: "Do you want to proceed?",
+            options
+        );
+
+        if (confirmation)
+        {
+            context.TotalPageViews = 0;
+            context.TotalViewTime = 0;
+            context.LastUpdated = DateTime.MinValue;
+            context.Anchors.Clear();
+            await DbContext.SaveChangesAsync();
+            ToastService.Notify(new ToastMessage(ToastType.Success, "Success", $"{context.PageUrl} reset successfully."));
+        }
+    }
 
     private async Task DeleteTrackedPage(TrackedPage context)
     {
@@ -66,9 +101,27 @@
 
         if (confirmation)
         {
-            ToastService.Notify(new ToastMessage(ToastType.Success, "Success", $"{context.PageUrl} deleted successfully."));
             DbContext.TrackedPages.Remove(context);
             await DbContext.SaveChangesAsync();
+            ToastService.Notify(new ToastMessage(ToastType.Success, "Success", $"{context.PageUrl} deleted successfully."));
         }
+    }
+    private async Task OnSwitchChanged(TrackedPage context)
+    {
+        //isSaving = true;
+
+        try
+        {
+
+        await DbContext.SaveChangesAsync();
+        ToastService.Notify(new ToastMessage(ToastType.Success, "Setting saved"));
+
+        }
+        catch (Exception ex)
+        {
+            ToastService.Notify(new ToastMessage(ToastType.Danger, $"Error: {ex.Message}"));
+        }
+
+        isSaving = false;
     }
 }

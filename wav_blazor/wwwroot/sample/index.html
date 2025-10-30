@@ -5,21 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sample Website with Heatmap</title>
-  <!-- Include heatmap.js library -->
-  <script src="https://cdn.jsdelivr.net/npm/heatmap.js/build/heatmap.min.js"></script>
-  <style>
-    #heatmap-container {
-        opacity: 0;
-        position: fixed !important;
-        top: 0;
-        right: 0;
-        width: 20px;
-        height: 100vh;
-        background-color: rgba(0, 0, 0, 0.5);
-        z-i: 9999; /* Ensure the heatmap is above other content */
-        transition: opacity 1000ms;
-    }
-  </style>
+  <script defer src="wav-client.js"></script>
 </head>
 
 <body>
@@ -363,10 +349,8 @@
     sapien, sagittis id elit a, pretium volutpat magna. Nullam efficitur, enim sit amet tincidunt tempus, dui nisi
     maximus ante, eget consequat magna neque sed sem.</p>
 
-  <div id="heatmap-container"></div>
 
   
-  <script src="wav-client.js"></script>
 </body>
 
 </html>
