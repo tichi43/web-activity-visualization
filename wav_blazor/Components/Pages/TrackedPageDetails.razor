@@ -1,6 +1,16 @@
 ﻿@page "/TrackedPageDetails/{TrackedPageId:int}"
 @inject Models.MyDbContext DbContext
 
+<script>
+    window.addEventListener('message', receiveMessage, false);
+
+    function receiveMessage(evt){
+
+        console.log("got message: "+evt.data);
+        document.getElementById("heatmap_iframe").height=evt.data*1.2;
+    }
+</script>
+
 <a href="javascript:history.back()" class="link-primary mb-3 d-block">← Back</a>
 
 <h3>TrackedPageDetails</h3>
@@ -17,16 +27,18 @@ else
     <p>Total page view counter: @currentPage.TotalPageViews</p>
     <p>Total page view time: @(currentPage.TotalViewTime*5) seconds = @(Math.Round((float)currentPage.TotalViewTime/12, 1)) minutes</p>
     <p class="small">Last update received: @currentPage.LastUpdated</p>
-    <Switch @bind-Value="@currentPage.IsDataCollectionActive" Label="data collection active" />
-    <Switch @bind-Value="@currentPage.IsHeatmapShown" Label="Show heatmap on page publicly" />
-    <button @onclick="() => DbContext.SaveChangesAsync()" class="btn btn-success btn-sm mt-2 mb-3">Save</button>
+    <Switch @bind-Value="@currentPage.IsDataCollectionActive" Label="data collection active" Disabled="@isSaving" />
+    <Switch @bind-Value="@currentPage.IsHeatmapShown" Label="Show heatmap on page publicly" Disabled="@isSaving" />
+    <button @onclick="() => SaveChanges()" class="btn btn-success btn-sm mt-2 mb-3">Save</button>
 
-    <iframe class="d-block border border-dark" width="100%" height="800px" src="https://@currentPage.PageUrl?adminView=true"></iframe>
-
+    <iframe id="heatmap_iframe" class="d-block border border-dark" width="100%" height="800px" src="https://@currentPage.PageUrl?adminView=true"></iframe>
+    
 }
 
 
 @code {
+    [Inject] protected ToastService ToastService { get; set; } = default!;
+    private bool isSaving = false;
     TrackedPage? currentPage;
 
     [Parameter]
@@ -37,4 +49,21 @@ else
         currentPage = DbContext.TrackedPages.Include(tp => tp.Anchors).FirstOrDefault(p => p.TrackedPageId == TrackedPageId);
     }
 
+
+    private void SaveChanges()
+    {
+        isSaving = true;
+
+        try
+        {
+            DbContext.SaveChanges();
+            ToastService.Notify(new ToastMessage(ToastType.Success, "Saved"));
+        }
+        catch (Exception ex)
+        {
+            ToastService.Notify(new ToastMessage(ToastType.Danger, $"Error: {ex.Message}"));
+        }
+
+        isSaving = false;
+    }
 }

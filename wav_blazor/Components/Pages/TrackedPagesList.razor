@@ -15,6 +15,7 @@
             <option>20</option>
             <option>50</option>
         </select>
+        <button @onclick="() => SaveChanges()" class="btn btn-success btn-sm float-end">Save</button>
     </div>
 
     <div class="card-body  table-responsive">
@@ -26,10 +27,10 @@
             <PropertyColumn Property="q => q.TotalPageViews" Sortable="true" />
             <PropertyColumn Property="q => q.TotalViewTime/12" Sortable="true" Title="TotalViewTime (minutes)"/>
             <TemplateColumn Title="Heatmap shown?" Sortable="true">
-                <Switch @bind-Value="@context.IsDataCollectionActive" @onclick="() => OnSwitchChanged(context)" Disabled="@isSaving" />
+                <Switch @bind-Value="context.IsDataCollectionActive"  Disabled="@isSaving" />
             </TemplateColumn>
             <TemplateColumn Title="Heatmap shown?" Sortable="true" >
-                <Switch @bind-Value="@context.IsHeatmapShown" @onclick="() => OnSwitchChanged(context)" Disabled="@isSaving"/>
+                <Switch @bind-Value="context.IsHeatmapShown" Disabled="@isSaving" />
             </TemplateColumn>
             <TemplateColumn Title="Actions" Align="Align.Right">
                 <div class="btn-group btn-group-sm">
@@ -39,6 +40,7 @@
         
             </TemplateColumn>
         </QuickGrid>
+
     </div>
     <div class="card-footer">
         <Paginator State="pagination"/>
@@ -106,16 +108,13 @@
             ToastService.Notify(new ToastMessage(ToastType.Success, "Success", $"{context.PageUrl} deleted successfully."));
         }
     }
-    private async Task OnSwitchChanged(TrackedPage context)
+    private void SaveChanges()
     {
-        //isSaving = true;
+        isSaving = true;
 
-        try
-        {
-
-        await DbContext.SaveChangesAsync();
-        ToastService.Notify(new ToastMessage(ToastType.Success, "Setting saved"));
-
+        try {
+            DbContext.SaveChanges();
+            ToastService.Notify(new ToastMessage(ToastType.Success, "Saved"));
         }
         catch (Exception ex)
         {

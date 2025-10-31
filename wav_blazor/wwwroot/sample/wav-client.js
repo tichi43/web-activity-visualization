@@ -102,13 +102,15 @@ window.addEventListener('load', function () {
         position: fixed !important;
         top: 0;
         right: 0;
-        width: 20px;
+        width: 10px;
         height: 100vh;
         background-color: rgba(0, 0, 0, 0.5);
         z-index: 9999;
         transition: opacity 1000ms;
     }`;
     document.head.appendChild(style);
+
+    window.parent.postMessage(document.body.scrollHeight, '*');
 }); //End of MAIN()
 
 
@@ -214,12 +216,13 @@ function renderHeatmap(data) {
                 anchorsData.forEach(anchorData => {
                     const anchorElement = document.querySelector('[data-anchor-i-d="'+anchorData.anchorName+'"]');
                     if (anchorElement) {
-                        const anchorPosition = anchorElement.getBoundingClientRect().top + window.scrollY;
+                        const anchorPosition = anchorElement.getBoundingClientRect().top + anchorElement.getBoundingClientRect().height/2 + window.scrollY;
                         let yPos = (anchorPosition / documentHeight) * viewportHeight;
                         heatmapData.push({
-                            x: 10,
+                            x: 5,
                             y: yPos,
-                            value: anchorData.totalTime
+                            value: anchorData.totalTime,
+                            radius: 30 //anchorElement.getBoundingClientRect().height/2
                         });
                     }
                 });
@@ -238,10 +241,12 @@ function renderHeatmap(data) {
 var fetchAndDrawHeatmapDebounced = debounce(fetchAndRenderHeatmap, 100);
 
 function startHeatmap() {
+    var blurratio = 1-window.innerHeight / document.documentElement.scrollHeight;
+
     console.log("starting heatmap");
     heatmapInstance = h337.create({
         container: document.getElementById('heatmap-container'),
-        radius: 30
+        blur: 0.85 //Math.max(0.1, blurratio)
     });
 
     fetchAndRenderHeatmap();
