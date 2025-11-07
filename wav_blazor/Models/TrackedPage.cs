@@ -7,8 +7,8 @@ public class TrackedPage
     public int TrackedPageId { get; set; }
     public required string PageUrl { get; set; }
     public DateTime LastUpdated { get; set; } = DateTime.Now;
-    public int? TotalViewTime { get; set; } = 0;
-    public int? TotalPageViews { get; set; } = 0;
+    public int TotalViewTime { get; set; } = 0;
+    public int TotalPageViews { get; set; } = 0;
     public bool IsDataCollectionActive { get; set; } = true;
     public bool IsHeatmapShown { get; set; } = true;
     public List<Anchor> Anchors { get; set; } = new List<Anchor>();

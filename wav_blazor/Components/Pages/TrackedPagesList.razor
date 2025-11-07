@@ -1,5 +1,7 @@
 ﻿@page "/"
+@rendermode InteractiveServer
 @attribute [StreamRendering(true)]
+@attribute [Authorize]
 @inject Models.MyDbContext DbContext
 @using Microsoft.AspNetCore.Components.QuickGrid;
 
@@ -24,20 +26,19 @@
             <TemplateColumn Title="URL" SortBy="GridSort<TrackedPage>.ByAscending(p => p.PageUrl)">
                 <a href="TrackedPageDetails/@context.TrackedPageId">@context.PageUrl</a>
             </TemplateColumn>
-            <PropertyColumn Property="q => q.TotalPageViews" Sortable="true" />
-            <PropertyColumn Property="q => q.TotalViewTime/12" Sortable="true" Title="TotalViewTime (minutes)"/>
-            <TemplateColumn Title="Heatmap shown?" Sortable="true">
+            <PropertyColumn Property="q => q.TotalPageViews" Sortable="true" Title="PageViews"/>
+            <PropertyColumn Property="q => q.TotalViewTime/12" Sortable="true" Title="ViewTime"/>
+            <TemplateColumn Title="data">
                 <Switch @bind-Value="context.IsDataCollectionActive"  Disabled="@isSaving" />
             </TemplateColumn>
-            <TemplateColumn Title="Heatmap shown?" Sortable="true" >
+            <TemplateColumn Title="Heat" >
                 <Switch @bind-Value="context.IsHeatmapShown" Disabled="@isSaving" />
             </TemplateColumn>
-            <TemplateColumn Title="Actions" Align="Align.Right">
-                <div class="btn-group btn-group-sm">
-                    <button @onclick="() => ResetTrackedPage(context)" class="btn btn-warning">Reset</button>
+            <TemplateColumn Title="Actions" Align="Align.End">
+                <div class="btn-group btn-group-sm shadow-sm h-100">
+                    <button @onclick="() => ResetTrackedPage(context)" class="btn btn-warning h-100">Reset</button>
                     <button @onclick="() => DeleteTrackedPage(context)" class="btn btn-danger">Delete</button>
                 </div>
-        
             </TemplateColumn>
         </QuickGrid>
 

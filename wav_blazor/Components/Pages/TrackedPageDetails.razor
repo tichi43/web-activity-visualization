@@ -1,4 +1,6 @@
 ﻿@page "/TrackedPageDetails/{TrackedPageId:int}"
+@rendermode InteractiveServer
+@attribute [Authorize]
 @inject Models.MyDbContext DbContext
 
 <script>

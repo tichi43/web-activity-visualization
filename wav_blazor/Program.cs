@@ -1,10 +1,14 @@
+using wav_blazor.Components;
+using wav_blazor.Components.Account;
+using wav_blazor.Models;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using wav_blazor.Components;
-using wav_blazor.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure Kestrel
 builder.WebHost.ConfigureKestrel((context, options) =>
 {
     options.ListenAnyIP(5011, listenOptions =>
@@ -14,10 +18,13 @@ builder.WebHost.ConfigureKestrel((context, options) =>
     });
 });
 
-
-// Add services to the container.
+// Razor Components
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+
+// Controllers
 builder.Services.AddControllers();
+
+// DbContext
 builder.Services.AddDbContext<MyDbContext>(options =>
        options.UseSqlServer(builder.Configuration.GetConnectionString("MyDatabase")+"Password="+builder.Configuration["ConnectionStrings:DBPASS"],
             sqlOptions => sqlOptions.EnableRetryOnFailure(
@@ -26,33 +33,79 @@ builder.Services.AddDbContext<MyDbContext>(options =>
                 errorNumbersToAdd: null
             )
 ));
+builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+// UI and EF helpers
 builder.Services.AddQuickGridEntityFrameworkAdapter();
+builder.Services.AddBlazorBootstrap();
+
+// Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddBlazorBootstrap();
+
+// Blazor Identity integration
+builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddScoped<IdentityUserAccessor>();
+builder.Services.AddScoped<IdentityRedirectManager>();
+builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
+
+// Authentication
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultScheme = IdentityConstants.ApplicationScheme;
+        options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
+    })
+    .AddIdentityCookies();
+
+// Identity setup
+builder.Services.AddIdentityCore<IdentityUser>(options =>
+    {
+        options.SignIn.RequireConfirmedAccount = true;
+        options.Password.RequireDigit = false;
+        options.Password.RequiredLength = 3;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireLowercase = false;
+    })
+    .AddEntityFrameworkStores<MyDbContext>()
+    .AddSignInManager()
+    .AddDefaultTokenProviders();
+
+// Identity helper
+builder.Services.AddSingleton<IEmailSender<IdentityUser>, IdentityNoOpEmailSender>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-app.UseHttpsRedirection();
-app.UseDefaultFiles();
-app.UseStaticFiles();
-
+// 1. Error handling & Swagger
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+}
 
-//app.UseExceptionHandler("/Error", createScopeForErrors: true);
+// 2. HTTPS & static files early
+app.UseHttpsRedirection();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
+// 3. Routing before Auth
+app.UseRouting();
 
+// 4. Authentication & Authorization
+app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseRouting();
+// 5. Anti-Forgery (after Auth, before endpoints)
 app.UseAntiforgery();
 
+// 6. Map endpoints
+app.MapAdditionalIdentityEndpoints();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapControllers();
 
+// 7. Run application
 app.Run();
+

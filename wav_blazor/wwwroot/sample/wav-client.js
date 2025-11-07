@@ -60,7 +60,8 @@ function initializeDataCollection() {
 //MAIN()
 window.addEventListener('load', function () {
     //Select and tag anchor points
-    anchorDB = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6, p'));
+    //anchorDB = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6, p'));
+    anchorDB = Array.from(document.querySelectorAll('code, p'));
     anchorDB.forEach(function (anchorPoint, i) {
         anchorPoint.dataset.anchorID = ('anchor-' + i.toString().padStart(3, '0'));
         anchorPoint.dataset.visible = "false";
