@@ -1,10 +1,13 @@
+using Azure.Identity;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using wav_blazor.Components;
 using wav_blazor.Components.Account;
 using wav_blazor.Models;
-using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,16 +27,37 @@ builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 // Controllers
 builder.Services.AddControllers();
 
-// DbContext
-builder.Services.AddDbContext<MyDbContext>(options =>
-       options.UseSqlServer(builder.Configuration.GetConnectionString("MyDatabase")+"Password="+builder.Configuration["ConnectionStrings:DBPASS"],
-            sqlOptions => sqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 10, // More retries
-                maxRetryDelay: TimeSpan.FromSeconds(7),
-                errorNumbersToAdd: null
-            )
-));
-builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+if (builder.Environment.IsDevelopment())
+{
+    // DbContext development
+    builder.Services.AddDbContext<MyDbContext>(options =>
+           options.UseSqlServer(builder.Configuration.GetConnectionString("MyDatabase") + "Password=" + builder.Configuration["ConnectionStrings:DBPASS"],
+                sqlOptions => sqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 10, // More retries
+                    maxRetryDelay: TimeSpan.FromSeconds(7),
+                    errorNumbersToAdd: null
+                )
+    ));
+    builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+}
+else
+{
+    //production DBcontext
+    var connection = new SqlConnection(builder.Configuration.GetConnectionString("AzureProd"));
+    var credential = new DefaultAzureCredential();
+    var token = await credential.GetTokenAsync(new Azure.Core.TokenRequestContext(new[] { "https://database.windows.net/" }));
+    connection.AccessToken = token.Token;
+
+    builder.Services.AddDbContext<MyDbContext>(options =>
+           options.UseSqlServer(connection,
+                sqlOptions => sqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 10, // More retries
+                    maxRetryDelay: TimeSpan.FromSeconds(7),
+                    errorNumbersToAdd: null
+                )
+    ));
+    builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+}
 // UI and EF helpers
 builder.Services.AddQuickGridEntityFrameworkAdapter();
 builder.Services.AddBlazorBootstrap();
