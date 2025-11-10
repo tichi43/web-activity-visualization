@@ -12,14 +12,14 @@ using wav_blazor.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure Kestrel
-builder.WebHost.ConfigureKestrel((context, options) =>
-{
-    options.ListenAnyIP(5011, listenOptions =>
-    {
-        listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
-        listenOptions.UseHttps();
-    });
-});
+//builder.WebHost.ConfigureKestrel((context, options) =>
+//{
+//    options.ListenAnyIP(5011, listenOptions =>
+//    {
+//        listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
+//        listenOptions.UseHttps();
+//    });
+//});
 
 // Razor Components
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
