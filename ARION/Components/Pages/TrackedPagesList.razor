@@ -1,0 +1,127 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@attribute [StreamRendering(true)]
+@attribute [Authorize]
+@inject Models.MyDbContext DbContext
+@using Microsoft.AspNetCore.Components.QuickGrid;
+
+
+
+<h3>TrackedPagesList</h3>
+<div class="card">
+    <div class="card-header">
+        Items per page:
+        <select @bind="@pagination.ItemsPerPage">
+            <option>5</option>
+            <option>10</option>
+            <option>20</option>
+            <option>50</option>
+        </select>
+        <button @onclick="() => SaveChanges()" class="btn btn-success btn-sm float-end">Save</button>
+    </div>
+
+    <div class="card-body  table-responsive">
+        <QuickGrid Items="DbContext.TrackedPages.Include(tp => tp.Anchors)" Pagination="pagination" Class="table table-sm table-striped table-hover align-middle">
+            <PropertyColumn Property="q => q.TrackedPageId" Title="ID"/>
+            <TemplateColumn Title="URL" SortBy="GridSort<TrackedPage>.ByAscending(p => p.PageUrl)">
+                <a href="TrackedPageDetails/@context.TrackedPageId">@context.PageUrl</a>
+            </TemplateColumn>
+            <PropertyColumn Property="q => q.TotalPageViews" Sortable="true" Title="PageViews"/>
+            <PropertyColumn Property="q => q.TotalViewTime/12" Sortable="true" Title="ViewTime"/>
+            <TemplateColumn Title="Collect data">
+                <Switch @bind-Value="context.IsDataCollectionActive"  Disabled="@isSaving" />
+            </TemplateColumn>
+            <TemplateColumn Title="Show heatmap" >
+                <Switch @bind-Value="context.IsHeatmapShown" Disabled="@isSaving" />
+            </TemplateColumn>
+            <TemplateColumn Title="Actions" Align="Align.End">
+                <div class="btn-group btn-group-sm shadow-sm h-100">
+                    <button @onclick="() => ResetTrackedPage(context)" class="btn btn-secondary h-100">Reset</button>
+                    <button @onclick="() => DeleteTrackedPage(context)" class="btn btn-danger">Delete</button>
+                </div>
+            </TemplateColumn>
+        </QuickGrid>
+
+    </div>
+    <div class="card-footer">
+        <Paginator State="pagination"/>
+    </div>
+</div>
+<ConfirmDialog @ref="dialog" />
+
+
+
+@code {
+    PaginationState pagination = new PaginationState { ItemsPerPage = 10 };
+    [Inject] protected ToastService ToastService { get; set; } = default!;
+
+
+    private ConfirmDialog dialog = default!;
+    private bool isSaving = false;
+
+    private async Task ResetTrackedPage(TrackedPage context)
+    {
+        var options = new ConfirmDialogOptions
+        {
+            YesButtonText = "Reset",
+            YesButtonColor = ButtonColor.Danger,
+            NoButtonText = "Cancel",
+            NoButtonColor = ButtonColor.Secondary
+        };
+        var confirmation = await dialog.ShowAsync(
+            title: $"Are you sure you want to reset {context.PageUrl}?",
+            message1: $"This will reset all data for record {context.PageUrl}. Once reset can not be rolled back.",
+            message2: "Do you want to proceed?",
+            options
+        );
+
+        if (confirmation)
+        {
+            context.TotalPageViews = 0;
+            context.TotalViewTime = 0;
+            context.LastUpdated = DateTime.MinValue;
+            context.Anchors.Clear();
+            await DbContext.SaveChangesAsync();
+            ToastService.Notify(new ToastMessage(ToastType.Success, "Success", $"{context.PageUrl} reset successfully."));
+        }
+    }
+
+    private async Task DeleteTrackedPage(TrackedPage context)
+    {
+        var options = new ConfirmDialogOptions
+            {
+                YesButtonText = "Delete",
+                YesButtonColor = ButtonColor.Danger,
+                NoButtonText = "Cancel",
+                NoButtonColor = ButtonColor.Secondary
+            };
+        var confirmation = await dialog.ShowAsync(
+            title: $"Are you sure you want to delete {context.PageUrl}?",
+            message1: $"This will delete the record {context.PageUrl}. Once deleted can not be rolled back.",
+            message2: "Do you want to proceed?",
+            options
+        );
+
+        if (confirmation)
+        {
+            DbContext.TrackedPages.Remove(context);
+            await DbContext.SaveChangesAsync();
+            ToastService.Notify(new ToastMessage(ToastType.Success, "Success", $"{context.PageUrl} deleted successfully."));
+        }
+    }
+    private void SaveChanges()
+    {
+        isSaving = true;
+
+        try {
+            DbContext.SaveChanges();
+            ToastService.Notify(new ToastMessage(ToastType.Success, "Saved"));
+        }
+        catch (Exception ex)
+        {
+            ToastService.Notify(new ToastMessage(ToastType.Danger, $"Error: {ex.Message}"));
+        }
+
+        isSaving = false;
+    }
+}
