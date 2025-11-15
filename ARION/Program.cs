@@ -11,15 +11,11 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Kestrel
-//builder.WebHost.ConfigureKestrel((context, options) =>
-//{
-//    options.ListenAnyIP(5011, listenOptions =>
-//    {
-//        listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
-//        listenOptions.UseHttps();
-//    });
-//});
+//enable HTTP/3
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ConfigureEndpointDefaults(listenOptions => listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3);
+});
 
 // Razor Components
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
@@ -43,13 +39,12 @@ builder.Services.AddDbContext<MyDbContext>(options =>
         options.UseSqlServer(sqlConn,
             sqlOptions => sqlOptions.EnableRetryOnFailure(
                 maxRetryCount: 10,
-                maxRetryDelay: TimeSpan.FromSeconds(30),
+                maxRetryDelay: TimeSpan.FromSeconds(10),
                 errorNumbersToAdd: null
             )
 ));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-// UI and EF helpers
 builder.Services.AddQuickGridEntityFrameworkAdapter();
 builder.Services.AddBlazorBootstrap();
 
@@ -61,7 +56,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "ARION API",
         Version = "v1",
-        Description = "ARION API surface"
+        Description = "ARION REST API"
     });
 });
 
@@ -70,6 +65,7 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityUserAccessor>();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
+builder.Services.AddSingleton<IEmailSender<IdentityUser>, IdentityNoOpEmailSender>();
 
 // Authentication
 builder.Services.AddAuthentication(options =>
@@ -92,9 +88,6 @@ builder.Services.AddIdentityCore<IdentityUser>(options =>
     .AddEntityFrameworkStores<MyDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
-
-// Identity helper
-builder.Services.AddSingleton<IEmailSender<IdentityUser>, IdentityNoOpEmailSender>();
 
 var app = builder.Build();
 
